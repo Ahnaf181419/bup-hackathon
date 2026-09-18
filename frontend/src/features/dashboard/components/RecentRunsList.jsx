@@ -19,6 +19,15 @@ function timeAgo(iso) {
 
 export function RecentRunsList({ runs = [], isLoading, selectedId, onSelectRun }) {
   const displayRuns = runs.slice(0, 6);
+  const costs = displayRuns.map((r) => r.total_cost_bdt).filter((c) => typeof c === "number" && Number.isFinite(c));
+  const best = costs.length > 0 ? Math.min(...costs) : null;
+
+  const delta = (run) => {
+    if (best === null || typeof run.total_cost_bdt !== "number" || !Number.isFinite(run.total_cost_bdt)) return null;
+    const pct = ((run.total_cost_bdt - best) / best) * 100;
+    if (pct === 0) return { text: "best", cls: "is-best" };
+    return { text: `${pct > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`, cls: pct > 0 ? "is-over" : "is-under" };
+  };
 
   return (
     <section className="card" aria-labelledby="recent-runs-title">
@@ -43,12 +52,13 @@ export function RecentRunsList({ runs = [], isLoading, selectedId, onSelectRun }
         </p>
       ) : (
         <ul className="run-list">
-          {displayRuns.map((run) => {
+          {displayRuns.map((run, idx) => {
             const id = run._id || run.scenario_id;
             const isSelected = selectedId === id;
             const when = timeAgo(run.createdAt);
+            const d = delta(run);
             return (
-              <li key={id}>
+              <li key={id} className="run-list-item" style={{ "--stagger-i": idx }}>
                 <button
                   type="button"
                   className={`run-item ${isSelected ? "selected" : ""}`}
@@ -56,14 +66,20 @@ export function RecentRunsList({ runs = [], isLoading, selectedId, onSelectRun }
                   onClick={() => onSelectRun?.(run)}
                 >
                   <span className="run-item-main">
-                    <span className="run-item-id">{run.scenario_id}</span>
+                    <span className="run-item-id">
+                      {run.scenario_id}
+                      {run.isReference && <span className="run-ref-tag" title="Reference answer from the public sample pack">REF</span>}
+                    </span>
                     <span className="run-item-meta">
                       {run.isReference ? "Reference answer" : when ? `GridWise run · ${when}` : "GridWise run"}
                     </span>
                   </span>
                   <span className="run-item-figures">
                     <span className="run-item-cost tabular">{formatBdt(run.total_cost_bdt)} BDT</span>
-                    <span className="run-item-meta tabular">{formatKwh(run.total_grid_kwh, 0)} kWh grid</span>
+                    <span className="run-item-figures-sub">
+                      <span className="run-item-meta tabular">{formatKwh(run.total_grid_kwh, 0)} kWh grid</span>
+                      {d && <span className={`run-delta tabular ${d.cls}`}>{d.text}</span>}
+                    </span>
                   </span>
                 </button>
               </li>

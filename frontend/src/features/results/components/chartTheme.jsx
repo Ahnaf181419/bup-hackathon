@@ -33,19 +33,21 @@ export const lineCursorProps = { stroke: "rgba(255,255,255,0.25)", strokeDasharr
 /**
  * Tooltip body. `rows` receives the hovered data point and returns [{label, value, color}].
  */
-export function ChartTooltip({ active, payload, label, rows }) {
+export function ChartTooltip({ active, payload, label, rows, titleFormatter }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
     <div className="chart-tooltip">
-      <div className="chart-tooltip-title">{label}:00</div>
-      {rows(point).map((r) => (
+      <div className="chart-tooltip-title">{titleFormatter ? titleFormatter(label, point) : `${label}:00`}</div>
+      {rows(point)
+        .filter((r) => r.label)
+        .map((r) => (
         <div key={r.label} className="chart-tooltip-row">
           <span>
             {r.color && <i className="swatch" style={{ background: r.color }} />}
             {r.label}
           </span>
-          <strong className="tabular">{r.value}</strong>
+          {r.value !== "" && <strong className="tabular">{r.value}</strong>}
         </div>
       ))}
     </div>

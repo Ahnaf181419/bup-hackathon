@@ -74,7 +74,7 @@ scenarioSchema.index({ userId: 1, scenarioId: 1 });
 ```json
 {
   "_id": "6507abc...",
-  "userId": "better-auth-user-id",
+  "userId": "demo-operator",
   "name": "Monday morning peak test",
   "scenarioId": "MY-SCENARIO-001",
   "operatorNotes": [
@@ -216,7 +216,7 @@ optimizationResultSchema.index({ scenarioId: 1 });
 ```json
 {
   "_id": "6507def...",
-  "userId": "better-auth-user-id",
+  "userId": "demo-operator",
   "scenarioId": "SAMPLE-01",
   "scenarioRef": null,
   "status": "success",
@@ -273,8 +273,6 @@ These collections are auto-created and managed by Better Auth. **Do NOT create M
 | Collection | Purpose | Key Fields |
 |---|---|---|
 | `user` | User accounts | `_id`, `name`, `email`, `emailVerified`, `image`, `createdAt`, `updatedAt` |
-| `session` | Active sessions | `_id`, `userId`, `token`, `expiresAt`, `ipAddress`, `userAgent` |
-| `account` | Auth provider accounts | `_id`, `userId`, `providerId`, `accountId`, `password` (hashed) |
 | `verification` | Email/token verification | `_id`, `identifier`, `value`, `expiresAt` |
 
 ---

@@ -2,179 +2,91 @@
 
 import React from "react";
 import Link from "next/link";
-import { Zap, Play, ArrowRight, ShieldCheck, Sun, BatteryCharging, CheckCircle2 } from "lucide-react";
-import { getSampleCaseById } from "@/features/shared/lib/sampleCases";
+import { ArrowRight, ShieldCheck, BookOpen } from "lucide-react";
+import { formatBdt, formatKwh, durationParts } from "@/features/shared/lib/format";
 
-export function QuickRunPromptCard({ selectedRun }) {
-  // Without a run yet, show SAMPLE-01's published reference numbers (labelled as reference).
-  const reference = getSampleCaseById("SAMPLE-01");
-  const scenario = selectedRun || {
-    scenario_id: reference.input.scenario_id,
-    label: `${reference.label} (reference)`,
-    total_cost_bdt: reference.expected_output.total_cost_bdt,
-    total_grid_kwh: reference.expected_output.total_grid_kwh,
-    peak_grid_kwh: reference.expected_output.peak_grid_kwh,
-    status: "optimal",
-    processingTimeMs: null,
-  };
+/** Preview of the selected run: its own summary and figures, nothing inferred. */
+export function QuickRunPromptCard({ run, isLoading }) {
+  if (!run) {
+    return (
+      <section className="card run-preview" aria-live="polite">
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          {isLoading ? "Loading…" : "Select a run to preview its plan."}
+        </p>
+      </section>
+    );
+  }
 
-  const id = scenario._id || scenario.scenario_id;
+  const id = run._id || run.scenario_id;
+  const summary = (run.plan_summary || "")
+    .split(/(?<=\.)\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const runtime = durationParts(run.processingTimeMs);
 
   return (
-    <div
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-xl)",
-        padding: "26px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        position: "relative",
-      }}
-    >
-      {/* Top Details Row — Matching Reference Invoice Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+    <section className="card run-preview" aria-labelledby="run-preview-title" aria-live="polite">
+      <div className="card-header">
+        <div className="stack-sm" style={{ gap: 6 }}>
+          <h2 id="run-preview-title" className="run-preview-title">{run.scenario_id}</h2>
+          {run.isReference ? (
+            <span className="badge badge-outline">
+              <BookOpen size={12} aria-hidden="true" /> Reference answer from the public sample pack
+            </span>
+          ) : (
+            <span className="badge badge-lime">
+              <ShieldCheck size={12} aria-hidden="true" /> Replay-verified plan
+            </span>
+          )}
+        </div>
+      </div>
+
+      <dl className="figure-row">
         <div>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Active Campus Dispatch Details
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
-            <h2 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em" }}>
-              #{scenario.scenario_id}
-            </h2>
-            <span className="badge badge-lime">Verified Optimal</span>
-          </div>
+          <dt>Total cost</dt>
+          <dd className="tabular">
+            {formatBdt(run.total_cost_bdt)} <span>BDT</span>
+          </dd>
         </div>
-
-        <div style={{ textAlign: "right" }}>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Target Grid Facility
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-            <div
-              style={{
-                width: "24px",
-                height: "24px",
-                borderRadius: "var(--radius-pill)",
-                background: "linear-gradient(135deg, #a3e635 0%, #38bdf8 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#070e02",
-                fontWeight: 800,
-                fontSize: "0.7rem",
-              }}
-            >
-              B
-            </div>
-            <strong style={{ fontSize: "0.95rem" }}>BUP Central Microgrid</strong>
-          </div>
+        <div>
+          <dt>Grid import</dt>
+          <dd className="tabular">
+            {formatKwh(run.total_grid_kwh)} <span>kWh</span>
+          </dd>
         </div>
-      </div>
-
-      {/* 3 Metric Sub-Cards — Matching Reference Mini-Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-        <div
-          style={{
-            background: "var(--bg-card-secondary)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            padding: "14px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-lime)" }}>
-            <Sun size={15} />
-            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>
-              Solar Utilization
-            </span>
-          </div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "6px", color: "var(--text-primary)" }}>
-            100%
-          </div>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>0% curtailed</span>
+        <div>
+          <dt>Peak hour draw</dt>
+          <dd className="tabular">
+            {formatKwh(run.peak_grid_kwh)} <span>kWh</span>
+          </dd>
         </div>
-
-        <div
-          style={{
-            background: "var(--bg-card-secondary)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            padding: "14px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-cyan)" }}>
-            <BatteryCharging size={15} />
-            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>
-              Battery Neutrality
-            </span>
-          </div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "6px", color: "var(--text-primary)" }}>
-            Neutral (±0.01)
-          </div>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Hour 23 SoC restored</span>
-        </div>
-
-        <div
-          style={{
-            background: "var(--bg-card-secondary)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md)",
-            padding: "14px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-amber)" }}>
-            <Zap size={15} />
-            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>
-              Peak Grid Draw
-            </span>
-          </div>
-          <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "6px", color: "var(--text-primary)" }}>
-            {typeof scenario.peak_grid_kwh === "number" ? `${scenario.peak_grid_kwh.toFixed(1)} kWh` : "—"}
-          </div>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Capped & load-shifted</span>
-        </div>
-      </div>
-
-      {/* Bottom Summary Bar — Matching Reference Bottom Row with Neon Action Button */}
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: "16px",
-          borderTop: "1px solid var(--border-subtle)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "14px",
-        }}
-      >
-        <div style={{ display: "flex", gap: "24px" }}>
+        {runtime !== null && (
           <div>
-            <div style={{ fontSize: "0.725rem", color: "var(--text-muted)" }}>Total Grid Import</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)" }}>
-              {typeof scenario.total_grid_kwh === "number" ? `${scenario.total_grid_kwh.toFixed(1)} kWh` : "—"}
-            </div>
+            <dt>Pipeline time</dt>
+            <dd className="tabular">
+              {runtime[0]} <span>{runtime[1]}</span>
+            </dd>
           </div>
-          <div>
-            <div style={{ fontSize: "0.725rem", color: "var(--text-muted)" }}>Optimized Net Cost</div>
-            <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--accent-lime)" }}>
-              {typeof scenario.total_cost_bdt === "number"
-                ? scenario.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : "38,365.00"} BDT
-            </div>
-          </div>
-        </div>
+        )}
+      </dl>
 
-        <Link
-          href={`/results/${id}`}
-          className="btn-primary"
-          style={{ height: "46px", padding: "0 28px", fontSize: "0.95rem" }}
-        >
-          <span>Inspect 24h Schedule & Charts</span>
-          <ArrowRight size={18} />
+      {summary.length > 0 && (
+        <div>
+          <h3 className="section-label">Plan summary</h3>
+          <ul className="summary-list">
+            {summary.map((point, i) => (
+              <li key={i}>{point}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="run-preview-actions">
+        <Link href={`/results/${id}`} className="btn-secondary">
+          <span>Open full schedule</span>
+          <ArrowRight size={16} />
         </Link>
       </div>
-    </div>
+    </section>
   );
 }

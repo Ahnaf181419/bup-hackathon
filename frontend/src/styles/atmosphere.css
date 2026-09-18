@@ -1,0 +1,199 @@
+/* ============================================================
+   GridWise — Atmosphere Layer ("living power grid")
+   Environmental identity motion, held below the attention
+   threshold (PRODUCT.md principle 1: this layer spends the
+   whole decoration budget — components above stay calm).
+
+   GPU model: 4 composited nodes animate transform only
+   (grid field, 2 blooms, pulse). Grid drift is seamless
+   because one loop == one MAJOR line period (5 cells).
+   ============================================================ */
+
+:root {
+  --z-bg: 0;
+
+  /* Grid field — white family, calibrated to stay a step under --data-gridline
+     (0.06) while remaining perceptible: minor at ~0.055, major at ~0.095. */
+  --atmo-cell: 56px;
+  --atmo-major: calc(var(--atmo-cell) * 5);
+  --atmo-line: rgba(255, 255, 255, 0.055);
+  --atmo-line-major: rgba(255, 255, 255, 0.095);
+
+  /* Blooms (Phase 0 doc: lime top-left, cyan bottom-right) */
+  --atmo-bloom-lime: rgba(163, 230, 53, 0.07);
+  --atmo-bloom-cyan: rgba(56, 189, 248, 0.04);
+
+  /* Power pulse */
+  --atmo-pulse: rgba(163, 230, 53, 0.06);
+
+  --atmo-drift: 120s;
+}
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-bg);
+  pointer-events: none;
+  contain: layout style paint;
+}
+
+/* --- Grid: outer owns the calm-center mask, inner owns the drift ------------
+   Split is required: a mask attached to a translating element would drag the
+   quiet zone with it and wobble behind the content. */
+
+.atmo-grid-mask {
+  position: absolute;
+  inset: 0;
+  /* Full strength across the upper two-thirds, one gentle fade toward the
+     bottom. Geometry note: the second ellipse radius is a RADIUS against the
+     viewport height — 140% keeps the whole screen inside the solid zone;
+     90% masked everything below mid-viewport invisible. */
+  -webkit-mask-image: radial-gradient(ellipse 180% 140% at 50% -15%,
+    black 0%, black 45%, rgba(0, 0, 0, 0.55) 75%, transparent 105%);
+  mask-image: radial-gradient(ellipse 180% 140% at 50% -15%,
+    black 0%, black 45%, rgba(0, 0, 0, 0.55) 75%, transparent 105%);
+}
+
+.atmo-grid-field {
+  position: absolute;
+  /* Oversized by one full major period so edges never expose while drifting */
+  inset: calc(-1 * var(--atmo-major));
+  background-image:
+    linear-gradient(to right, var(--atmo-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--atmo-line) 1px, transparent 1px),
+    linear-gradient(to right, var(--atmo-line-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--atmo-line-major) 1px, transparent 1px);
+  background-size:
+    var(--atmo-cell) var(--atmo-cell),
+    var(--atmo-cell) var(--atmo-cell),
+    var(--atmo-major) var(--atmo-major),
+    var(--atmo-major) var(--atmo-major);
+  will-change: transform;
+  animation: atmo-grid-drift var(--atmo-drift) linear infinite;
+}
+
+@keyframes atmo-grid-drift {
+  from {
+    transform: translate3d(0, var(--atmo-major), 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* --- Blooms: huge soft gradients breathing in place ------------------------
+   ease-in-out (not the interaction curve) so the alternate-direction
+   reversal has no velocity tick — ambient oscillation, not interaction. */
+
+.atmo-bloom {
+  position: absolute;
+  width: 130vmax;
+  height: 130vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.atmo-bloom-lime {
+  top: -45vmax;
+  left: -40vmax;
+  background: radial-gradient(circle, var(--atmo-bloom-lime) 0%, transparent 60%);
+  animation: atmo-bloom-drift-a 90s ease-in-out infinite alternate;
+}
+
+.atmo-bloom-cyan {
+  right: -45vmax;
+  bottom: -50vmax;
+  background: radial-gradient(circle, var(--atmo-bloom-cyan) 0%, transparent 60%);
+  animation: atmo-bloom-drift-b 120s ease-in-out infinite alternate;
+}
+
+@keyframes atmo-bloom-drift-a {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(6vmax, 4vmax, 0);
+  }
+}
+
+@keyframes atmo-bloom-drift-b {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-5vmax, -4vmax, 0);
+  }
+}
+
+/* --- Power pulse: the one signature ambient moment -------------------------
+   One lime band scans down every 14s (~3.4s sweep + rest). All rest states
+   are opacity 0, so the global reduced-motion clamp freezes it invisible. */
+
+.atmo-pulse {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  /* Base opacity 0: when the reduced-motion clamp ends the animation without
+     fill-mode, the element reverts here and stays invisible instead of parking
+     a visible band at the top of the viewport. */
+  opacity: 0;
+  background: linear-gradient(to right,
+    transparent, var(--atmo-pulse) 18%, var(--atmo-pulse) 82%, transparent);
+  box-shadow: 0 0 12px 2px rgba(163, 230, 53, 0.05);
+  will-change: transform;
+  animation: atmo-power-pulse 14s linear infinite;
+}
+
+@keyframes atmo-power-pulse {
+  0% {
+    transform: translate3d(0, -2vh, 0);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  24% {
+    transform: translate3d(0, 102vh, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, 102vh, 0);
+    opacity: 0;
+  }
+}
+
+/* --- Grain: kills gradient banding on the blooms --------------------------- */
+
+.atmo-noise {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+}
+
+/* --- Showcase intensity (Phase 6 landing sets body attr) -------------------- */
+
+body[data-bg-intensity="showcase"] {
+  --atmo-line: rgba(255, 255, 255, 0.085);
+  --atmo-line-major: rgba(255, 255, 255, 0.13);
+  --atmo-bloom-lime: rgba(163, 230, 53, 0.1);
+  --atmo-bloom-cyan: rgba(56, 189, 248, 0.06);
+}
+
+body[data-bg-intensity="showcase"] .atmo-grid-field {
+  animation-duration: 60s;
+}
+
+/* --- Mobile: fewer layers, larger cells ------------------------------------ */
+
+@media (max-width: 860px) {
+  :root {
+    --atmo-cell: 72px;
+  }
+
+  .atmo-bloom-cyan {
+    display: none;
+  }
+}

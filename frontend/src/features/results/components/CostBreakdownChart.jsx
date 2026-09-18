@@ -1,91 +1,63 @@
 "use client";
 
 import React from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Coins } from "lucide-react";
+import { COLORS, SYNC_ID, axisProps, gridProps, hourTicks, cursorProps, ChartTooltip, Legend, useChartAnimation } from "./chartTheme";
 
+/** Grid cost per hour (grid kWh x tariff) with the tariff on a second axis. Needs the input tariffs. */
 export function CostBreakdownChart({ plan, hours = [] }) {
-  if (!plan || plan.length === 0) return null;
+  const anim = useChartAnimation();
+  const tariffByHour = new Map(hours.map((h) => [h.hour, h.tariff_bdt_per_kwh]));
+  if (!plan || plan.length === 0 || tariffByHour.size !== 24) return null;
 
-  const data = plan.map((p, idx) => {
-    const tariff = hours[idx]?.tariff_bdt_per_kwh || (p.hour >= 17 && p.hour <= 22 ? 12 : 6);
-    const cost = p.grid_kwh * tariff;
-    return {
-      hour: `${String(p.hour).padStart(2, "0")}:00`,
-      cost: Number(cost.toFixed(2)),
-      tariff,
-      grid: p.grid_kwh,
-    };
+  const data = plan.map((p) => {
+    const tariff = tariffByHour.get(p.hour);
+    return { h: String(p.hour).padStart(2, "0"), cost: p.grid_kwh * tariff, tariff, grid: p.grid_kwh };
   });
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const p = payload[0].payload;
-      return (
-        <div
-          style={{
-            background: "#0c1219",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "var(--radius-sm)",
-            padding: "10px 14px",
-            boxShadow: "var(--shadow-lg)",
-            fontSize: "0.8rem",
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: "4px", color: "var(--text-primary)" }}>
-            Hour {label}
-          </div>
-          <div style={{ color: "var(--accent-lime)", fontWeight: 800 }}>
-            Cost: {p.cost.toFixed(2)} BDT
-          </div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Grid Draw: {p.grid.toFixed(1)} kWh @ {p.tariff} BDT/kWh
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-xl)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-      }}
-    >
-      <div className="pane-header-row">
+    <section className="card" aria-labelledby="cost-title">
+      <div className="card-header">
         <div>
-          <h3 className="pane-title">Hourly Campus Electricity Cost Profile</h3>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Grid draw expenditure per hour based on dynamic tariff pricing (BDT)
-          </p>
+          <h2 id="cost-title" className="card-title">
+            <Coins size={18} strokeWidth={1.75} aria-hidden="true" />
+            Hourly grid cost
+          </h2>
+          <p className="card-desc">Grid import times tariff. Cheap hours carry the load where limits allow.</p>
         </div>
+        <Legend
+          items={[
+            { label: "Cost (BDT)", color: COLORS.grid },
+            { label: "Tariff (BDT/kWh)", color: COLORS.demand },
+          ]}
+        />
       </div>
 
       <div style={{ width: "100%", height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis dataKey="hour" stroke="#64748b" fontSize={11} />
-            <YAxis stroke="#64748b" fontSize={11} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="cost" name="Hourly Cost (BDT)" fill="#a3e635" radius={[4, 4, 0, 0]} />
-          </BarChart>
+          <ComposedChart data={data} syncId={SYNC_ID} margin={{ top: 8, right: 0, left: -12, bottom: 0 }}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="h" {...axisProps} ticks={hourTicks} />
+            <YAxis yAxisId="cost" {...axisProps} width={48} />
+            <YAxis yAxisId="tariff" orientation="right" {...axisProps} width={32} />
+            <Tooltip
+              cursor={cursorProps}
+              content={
+                <ChartTooltip
+                  rows={(d) => [
+                    { label: "Cost", value: `${d.cost.toFixed(2)} BDT`, color: COLORS.grid },
+                    { label: "Grid import", value: `${d.grid.toFixed(1)} kWh` },
+                    { label: "Tariff", value: `${d.tariff} BDT/kWh`, color: COLORS.demand },
+                  ]}
+                />
+              }
+            />
+            <Bar yAxisId="cost" dataKey="cost" fill={COLORS.grid} fillOpacity={0.85} radius={[3, 3, 0, 0]} {...anim} />
+            <Line yAxisId="tariff" dataKey="tariff" type="stepAfter" stroke={COLORS.demand} strokeOpacity={0.7} strokeWidth={1.5} dot={false} {...anim} />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </section>
   );
 }

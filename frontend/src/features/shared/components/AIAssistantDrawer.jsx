@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Sparkles, Send, X, Bot, Trash2 } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,14 +13,13 @@ const DEFAULT_WELCOME = {
 };
 
 export function AIAssistantDrawer() {
-  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([DEFAULT_WELCOME]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const storageKey = `gridwise_chat_${user?.id || user?.email || "guest"}`;
+  const storageKey = "gridwise_chat";
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
@@ -111,10 +109,10 @@ export function AIAssistantDrawer() {
       setMessages(updated);
       saveLocalHistory(updated);
     } catch (err) {
-      let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with window: [13, 14] and factor: 0.30.";
+      let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with hours: [13, 14] and factor: 0.3.";
       const lower = userText.toLowerCase();
       if (lower.includes("battery") || lower.includes("reserve")) {
-        smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and reserve_floor_kwh: 300.";
+        smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and minimum_energy_kwh: 300.";
       } else if (lower.includes("neutral") || lower.includes("end of day") || lower.includes("soc")) {
         smartReply = "GridWise enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
       }
@@ -136,53 +134,15 @@ export function AIAssistantDrawer() {
     <>
       {/* Floating Trigger Button */}
       {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            position: "fixed",
-            bottom: "28px",
-            right: "28px",
-            zIndex: 90,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "var(--radius-pill)",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-active)",
-            color: "var(--accent-lime)",
-            boxShadow: "var(--shadow-glow)",
-            cursor: "pointer",
-            fontWeight: 700,
-            fontSize: "0.85rem",
-            transition: "all 0.2s ease",
-          }}
-        >
+        <button onClick={() => setIsOpen(true)} className="ai-fab" aria-label="Open AI dispatch assistant">
           <Sparkles size={16} />
-          <span>AI Dispatch Assistant</span>
+          <span className="ai-fab-label">AI assistant</span>
         </button>
       )}
 
       {/* Floating Assistant Drawer */}
       {isOpen && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "28px",
-            right: "28px",
-            width: "390px",
-            height: "530px",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "var(--radius-xl)",
-            boxShadow: "var(--shadow-lg)",
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 100,
-            overflow: "hidden",
-            animation: "slideIn 0.25s ease",
-          }}
-        >
+        <div className="ai-drawer" role="dialog" aria-label="AI dispatch assistant">
           {/* Header */}
           <div
             style={{
@@ -200,8 +160,8 @@ export function AIAssistantDrawer() {
                   width: "28px",
                   height: "28px",
                   borderRadius: "var(--radius-pill)",
-                  background: "var(--accent-lime)",
-                  color: "#070e02",
+                  background: "var(--accent-lime-subtle)",
+                  color: "var(--accent-lime)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -211,7 +171,7 @@ export function AIAssistantDrawer() {
               </div>
               <div>
                 <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
-                <span style={{ fontSize: "0.7rem", color: "var(--accent-lime)" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                   {LLM_MODEL_LABEL}
                 </span>
               </div>
@@ -221,6 +181,7 @@ export function AIAssistantDrawer() {
               <button
                 onClick={handleClearHistory}
                 title="Clear chat history"
+                aria-label="Clear chat history"
                 className="icon-button"
                 style={{ width: "28px", height: "28px", color: "var(--text-muted)" }}
               >
@@ -229,6 +190,7 @@ export function AIAssistantDrawer() {
               <button
                 onClick={() => setIsOpen(false)}
                 className="icon-button"
+                aria-label="Close assistant"
                 style={{ width: "28px", height: "28px" }}
               >
                 <X size={14} />
@@ -261,12 +223,12 @@ export function AIAssistantDrawer() {
                   style={{
                     padding: "10px 14px",
                     borderRadius: "var(--radius-md)",
-                    background: msg.role === "user" ? "var(--accent-lime)" : "var(--bg-card-secondary)",
-                    color: msg.role === "user" ? "#070e02" : "var(--text-primary)",
+                    background: msg.role === "user" ? "var(--bg-pill-hover)" : "var(--bg-card-secondary)",
+                    color: "var(--text-primary)",
                     fontSize: "0.825rem",
                     lineHeight: "1.4",
                     border: msg.role === "user" ? "none" : "1px solid var(--border-subtle)",
-                    fontWeight: msg.role === "user" ? 600 : 400,
+                    fontWeight: 400,
                   }}
                 >
                   {msg.role === "user" ? (

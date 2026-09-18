@@ -17,8 +17,6 @@ Server runs on `http://localhost:3001`.
 | `PORT`             | HTTP port (default 3001)                   |
 | `MONGO_URI`        | MongoDB Atlas connection string            |
 | `GEMINI_API_KEY`   | Google AI Studio API key                   |
-| `BETTER_AUTH_SECRET` | Session/token signing secret             |
-| `BETTER_AUTH_URL`  | Base URL of this backend                   |
 | `CORS_ORIGIN`      | Allowed frontend origin (comma-separated)  |
 
 ## Structure
@@ -27,7 +25,7 @@ Server runs on `http://localhost:3001`.
 src/
 ├── server.js        # entry — DB connect + listen
 ├── app.js           # express app — CORS, routes, error handler
-├── config/          # env, db, gemini client, better-auth instance
+├── config/          # env, db, gemini client, operator id
 ├── routes/          # URL -> controller mapping (all under /api)
 ├── controllers/     # request handling, response shaping
 ├── services/        # business logic (Gemini calls, DB operations)

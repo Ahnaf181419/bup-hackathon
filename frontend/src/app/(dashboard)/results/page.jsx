@@ -2,110 +2,90 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { BarChart3, Play, Search, ArrowRight, ShieldCheck, Clock, Zap } from "lucide-react";
+import { Plus, Search, ArrowRight } from "lucide-react";
 import { useHistory } from "@/features/results/hooks/useHistory";
 import { LoadingSpinner } from "@/features/shared/components/LoadingSpinner";
 import { EmptyState } from "@/features/shared/components/EmptyState";
+import { formatBdt, formatKwh, formatDuration } from "@/features/shared/lib/format";
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "runs", label: "GridWise runs" },
+  { key: "reference", label: "Reference answers" },
+];
 
 export default function ResultsListPage() {
   const { history, isLoading } = useHistory();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [filter, setFilter] = useState("all");
 
+  const q = searchTerm.trim().toLowerCase();
   const filtered = history.filter((item) => {
     const matchesSearch =
-      (item.scenario_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.label || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
+      !q || (item.scenario_id || "").toLowerCase().includes(q) || (item.label || "").toLowerCase().includes(q);
+    const matchesFilter = filter === "all" || (filter === "reference" ? item.isReference : !item.isReference);
+    return matchesSearch && matchesFilter;
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Header Row */}
+    <div className="stack">
       <div className="page-header-row">
         <div className="header-title-group">
-          <h1 className="page-title">
-            <span>Optimization Runs & Audits</span>
-            <span className="badge badge-lime">{history.length} Runs Logged</span>
-          </h1>
-          <p className="page-subtitle">
-            Historical energy optimization runs, operator directive interpretations, and solved dispatch schedules.
-          </p>
+          <h1 className="page-title">Runs</h1>
+          <p className="page-subtitle">Every saved plan, with the public reference answers for comparison.</p>
         </div>
-
         <div className="header-actions">
           <Link href="/optimize" className="btn-primary">
-            <Play size={16} fill="#070e02" />
-            <span>Launch New Optimization</span>
+            <Plus size={16} strokeWidth={2} />
+            <span>New optimization</span>
           </Link>
         </div>
       </div>
 
-      {/* Filter & Search Bar — Styled after Reference Search / Filter Row */}
       <div className="filter-bar">
-        <div className="filter-group-left">
-          <div className="filter-badge-counter">
-            <span>Total Records</span>
-            <span className="filter-count-circle">{filtered.length}</span>
-          </div>
-
-          <div className="pill-tab-group">
+        <div className="pill-tab-group" role="tablist" aria-label="Filter runs">
+          {FILTERS.map((f) => (
             <button
-              className={`pill-tab-btn ${statusFilter === "all" ? "active" : ""}`}
-              onClick={() => setStatusFilter("all")}
+              key={f.key}
+              role="tab"
+              aria-selected={filter === f.key}
+              className={`pill-tab-btn ${filter === f.key ? "active" : ""}`}
+              onClick={() => setFilter(f.key)}
             >
-              All Runs
+              {f.label}
             </button>
-            <button
-              className={`pill-tab-btn ${statusFilter === "optimal" ? "active" : ""}`}
-              onClick={() => setStatusFilter("optimal")}
-            >
-              Optimal Only
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* Search Input */}
-        <div style={{ position: "relative", minWidth: "260px" }}>
-          <Search
-            size={16}
-            style={{
-              position: "absolute",
-              left: "12px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--text-muted)",
-            }}
-          />
+        <div className="search-field">
+          <Search size={15} aria-hidden="true" />
+          <label htmlFor="run-search" className="visually-hidden">
+            Search runs
+          </label>
           <input
-            type="text"
+            id="run-search"
+            type="search"
             className="form-input"
-            style={{
-              paddingLeft: "36px",
-              paddingTop: "6px",
-              paddingBottom: "6px",
-              borderRadius: "var(--radius-pill)",
-              fontSize: "0.825rem",
-              width: "100%",
-            }}
-            placeholder="Search scenario or label..."
+            placeholder="Search by scenario ID"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      {/* Table of History Runs */}
       {isLoading ? (
-        <LoadingSpinner size={32} text="Loading historical runs..." />
+        <LoadingSpinner size={24} text="Loading runs…" />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title="No Optimization Runs Found"
-          description="No results match your search filter. Run an energy scenario or load a benchmark."
+          title={history.length === 0 ? "No runs yet" : "No runs match"}
+          description={
+            history.length === 0
+              ? "Optimize a scenario and it will be listed here."
+              : "Try a different scenario ID or filter."
+          }
           action={
-            <Link href="/optimize" className="btn-primary">
-              Run Optimizer
+            <Link href="/optimize" className="btn-secondary">
+              Optimize a scenario
             </Link>
           }
         />
@@ -114,75 +94,49 @@ export default function ResultsListPage() {
           <table className="custom-table">
             <thead>
               <tr>
-                <th>Scenario Case</th>
-                <th>Status</th>
-                <th>Total Cost (BDT)</th>
-                <th>Total Grid (kWh)</th>
-                <th>Peak Draw (kWh)</th>
-                <th>Directives</th>
-                <th>Runtime</th>
-                <th>Action</th>
+                <th scope="col">Scenario</th>
+                <th scope="col">Source</th>
+                <th scope="col" className="num">Cost (BDT)</th>
+                <th scope="col" className="num">Grid (kWh)</th>
+                <th scope="col" className="num">Peak (kWh)</th>
+                <th scope="col" className="num">Time</th>
+                <th scope="col">
+                  <span className="visually-hidden">Open</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
-                <tr key={item._id || item.scenario_id}>
-                  <td>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <strong style={{ color: "var(--text-primary)", fontSize: "0.9rem" }}>
+              {filtered.map((item) => {
+                const id = item._id || item.scenario_id;
+                return (
+                  <tr key={id}>
+                    <td>
+                      <Link href={`/results/${id}`} className="table-link">
                         {item.scenario_id}
-                      </strong>
-                      {item.label && (
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {item.label}
-                        </span>
+                      </Link>
+                      {item.label && <div className="form-hint">{item.label}</div>}
+                    </td>
+                    <td>
+                      {item.isReference ? (
+                        <span className="badge badge-outline">Reference</span>
+                      ) : (
+                        <span className="badge badge-lime">GridWise</span>
                       )}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge badge-lime">
-                      ● {(item.status || "OPTIMAL").toUpperCase()}
-                    </span>
-                  </td>
-                  <td>
-                    <strong style={{ color: "var(--accent-lime)", fontSize: "0.95rem" }}>
-                      {typeof item.total_cost_bdt === "number"
-                        ? item.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : "—"} BDT
-                    </strong>
-                  </td>
-                  <td>
-                    <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
-                      {typeof item.total_grid_kwh === "number" ? item.total_grid_kwh.toFixed(1) : "—"} kWh
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ color: "var(--accent-amber)", fontWeight: 600 }}>
-                      {typeof item.peak_grid_kwh === "number" ? item.peak_grid_kwh.toFixed(1) : "—"} kWh
-                    </span>
-                  </td>
-                  <td>
-                    <span className="badge badge-cyan">
-                      {item.directivesCount || 2} Directives
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      {item.processingTimeMs ? `${item.processingTimeMs} ms` : "—"}
-                    </span>
-                  </td>
-                  <td>
-                    <Link
-                      href={`/results/${item._id || item.scenario_id}`}
-                      className="btn-secondary"
-                      style={{ padding: "5px 14px", fontSize: "0.775rem", gap: "4px" }}
-                    >
-                      <span>Inspect</span>
-                      <ArrowRight size={13} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="num">{formatBdt(item.total_cost_bdt)}</td>
+                    <td className="num">{formatKwh(item.total_grid_kwh)}</td>
+                    <td className="num">{formatKwh(item.peak_grid_kwh)}</td>
+                    <td className="num muted">
+                      {formatDuration(item.processingTimeMs)}
+                    </td>
+                    <td className="num">
+                      <Link href={`/results/${id}`} className="link-accent" aria-label={`Open ${item.scenario_id}`}>
+                        Open <ArrowRight size={13} />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

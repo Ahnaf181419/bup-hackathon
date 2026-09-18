@@ -10,11 +10,10 @@ app.disable("x-powered-by");
 
 const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 
-// Judge-facing endpoints: open to any origin. Origin is reflected (not "*") so browser calls made
-// with credentials: "include" still pass; these endpoints never read cookies or sessions.
-const publicCors = cors({ origin: true, credentials: true });
+// Judge-facing endpoints: open to any origin. There are no cookies or sessions anywhere.
+const publicCors = cors();
 
-// Dashboard API: only configured origins may send credentials (session cookies).
+// Dashboard API: only the configured dashboard origins.
 const apiCors = cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
@@ -22,7 +21,6 @@ const apiCors = cors({
     }
     return callback(null, false);
   },
-  credentials: true,
 });
 
 app.use(express.json({ limit: "1mb" }));

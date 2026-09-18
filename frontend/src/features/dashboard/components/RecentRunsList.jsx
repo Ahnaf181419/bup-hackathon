@@ -2,108 +2,91 @@
 
 import React from "react";
 import Link from "next/link";
-import { Zap, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, History } from "lucide-react";
+import { formatBdt, formatKwh } from "@/features/shared/lib/format";
 
-export function RecentRunsList({ runs = [], selectedId, onSelectRun }) {
+function timeAgo(iso) {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diff) || diff < 0) return null;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} h ago`;
+  return `${Math.round(h / 24)} d ago`;
+}
+
+export function RecentRunsList({ runs = [], isLoading, selectedId, onSelectRun }) {
   const displayRuns = runs.slice(0, 6);
+  const costs = displayRuns.map((r) => r.total_cost_bdt).filter((c) => typeof c === "number" && Number.isFinite(c));
+  const best = costs.length > 0 ? Math.min(...costs) : null;
+
+  const delta = (run) => {
+    if (best === null || typeof run.total_cost_bdt !== "number" || !Number.isFinite(run.total_cost_bdt)) return null;
+    const pct = ((run.total_cost_bdt - best) / best) * 100;
+    if (pct === 0) return { text: "best", cls: "is-best" };
+    return { text: `${pct > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%`, cls: pct > 0 ? "is-over" : "is-under" };
+  };
 
   return (
-    <div
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-xl)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "18px",
-      }}
-    >
-      <div className="pane-header-row">
-        <div className="pane-title-group">
-          <Zap size={20} color="var(--accent-lime)" />
-          <h3 className="pane-title">Recent Optimization Queue</h3>
+    <section className="card" aria-labelledby="recent-runs-title">
+      <div className="card-header">
+        <div>
+          <h2 id="recent-runs-title" className="card-title">
+            <History size={18} strokeWidth={1.75} aria-hidden="true" />
+            Recent runs
+          </h2>
+          <p className="card-desc">Select a run to preview it.</p>
         </div>
-        <Link href="/results" style={{ fontSize: "0.8rem", color: "var(--accent-lime)", fontWeight: 700 }}>
-          View All History →
+        <Link href="/results" className="link-accent">
+          All runs <ArrowRight size={14} />
         </Link>
       </div>
 
-      <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        Latest 24-hour campus energy dispatches processed by the LLM and LP solver engine.
-      </p>
-
-      {/* List items inspired by the reference screenshot list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {displayRuns.map((run) => {
-          const isSelected = selectedId === (run._id || run.scenario_id);
-          const cost = typeof run.total_cost_bdt === "number"
-            ? run.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            : "38,365.00";
-          const id = run._id || run.scenario_id;
-
-          return (
-            <div
-              key={id}
-              onClick={() => onSelectRun && onSelectRun(run)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "12px 16px",
-                background: isSelected ? "var(--bg-card-hover)" : "var(--bg-card-secondary)",
-                border: isSelected ? "1px solid var(--accent-lime)" : "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-lg)",
-                cursor: "pointer",
-                transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-              }}
-            >
-              {/* Left: Icon & ID */}
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "var(--radius-pill)",
-                    background: isSelected ? "var(--accent-lime)" : "rgba(255, 255, 255, 0.05)",
-                    color: isSelected ? "#070e02" : "var(--accent-lime)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+      {isLoading ? (
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>Loading runs…</p>
+      ) : displayRuns.length === 0 ? (
+        <p className="muted" style={{ fontSize: "var(--text-sm)" }}>
+          No runs yet. <Link href="/optimize" className="link-accent">Optimize a scenario</Link> to see it here.
+        </p>
+      ) : (
+        <ul className="run-list">
+          {displayRuns.map((run, idx) => {
+            const id = run._id || run.scenario_id;
+            const isSelected = selectedId === id;
+            const when = timeAgo(run.createdAt);
+            const d = delta(run);
+            return (
+              <li key={id} className="run-list-item" style={{ "--stagger-i": idx }}>
+                <button
+                  type="button"
+                  className={`run-item ${isSelected ? "selected" : ""}`}
+                  aria-pressed={isSelected}
+                  onClick={() => onSelectRun?.(run)}
                 >
-                  <CheckCircle2 size={18} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)" }}>
-                    #{run.scenario_id}
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    {run.label || "Optimal Dispatch"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Middle: Badge */}
-              <div>
-                <span className="badge badge-lime">
-                  ● {(run.status || "OPTIMAL").toUpperCase()}
-                </span>
-              </div>
-
-              {/* Right: Cost */}
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>
-                  {cost} BDT
-                </div>
-                <div style={{ fontSize: "0.725rem", color: "var(--text-muted)" }}>
-                  {run.total_grid_kwh ? `${run.total_grid_kwh.toFixed(0)} kWh grid` : "Low grid"}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+                  <span className="run-item-main">
+                    <span className="run-item-id">
+                      {run.scenario_id}
+                      {run.isReference && <span className="run-ref-tag" title="Reference answer from the public sample pack">REF</span>}
+                    </span>
+                    <span className="run-item-meta">
+                      {run.isReference ? "Reference answer" : when ? `GridWise run · ${when}` : "GridWise run"}
+                    </span>
+                  </span>
+                  <span className="run-item-figures">
+                    <span className="run-item-cost tabular">{formatBdt(run.total_cost_bdt)} BDT</span>
+                    <span className="run-item-figures-sub">
+                      <span className="run-item-meta tabular">{formatKwh(run.total_grid_kwh, 0)} kWh grid</span>
+                      {d && <span className={`run-delta tabular ${d.cls}`}>{d.text}</span>}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

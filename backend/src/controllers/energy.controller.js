@@ -1,6 +1,7 @@
 import { runOptimizationPipeline } from "../services/pipeline.service.js";
 import { saveOptimizationResult } from "../services/history.service.js";
 import { validateOptimizeRequest } from "../validators/energy.validator.js";
+import { OPERATOR_ID } from "../config/operator.js";
 
 function judgeResponse(result) {
   return {
@@ -32,9 +33,9 @@ export async function optimizeEnergyPublic(req, res, next) {
  * Dashboard Endpoint: POST /api/energy/optimize
  * Same pipeline, plus persistence and pipeline metadata for the UI.
  */
-export async function optimizeEnergyAuth(req, res, next) {
+export async function optimizeEnergyDashboard(req, res, next) {
   try {
-    const userId = req.user?.id || "operator";
+    const userId = OPERATOR_ID;
     const input = validateOptimizeRequest(fromCamelCase(req.body));
     const result = await runOptimizationPipeline(input);
     const savedDoc = await saveOptimizationResult(userId, result, input);

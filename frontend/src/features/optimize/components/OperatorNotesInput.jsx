@@ -1,167 +1,112 @@
 "use client";
 
 import React from "react";
-import { Plus, Trash2, Sparkles, MessageSquare } from "lucide-react";
+import { Plus, X, MessageSquareText } from "lucide-react";
+
+const MAX_NOTES = 3;
+
+// Example notes written for this UI (not taken from the evaluation set).
+const EXAMPLE_NOTES = [
+  {
+    label: "Panel cleaning",
+    text: "Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.",
+  },
+  {
+    label: "Evening reserve",
+    text: "Keep battery energy at or above 300 kWh from 6 PM to 9 PM for expected campus conference backup.",
+  },
+  {
+    label: "Grid cap",
+    text: "Utility alert: limit grid draw to a maximum of 180 kWh per hour between 5 PM and 8 PM.",
+  },
+  {
+    label: "Inverter maintenance",
+    text: "Battery inverter maintenance scheduled between 1 PM and 3 PM. Battery discharge is prohibited during this window.",
+  },
+];
 
 export function OperatorNotesInput({ notes, onChange }) {
-  const handleNoteChange = (index, value) => {
+  const setNote = (index, value) => {
     const updated = [...notes];
     updated[index] = value;
     onChange(updated);
   };
 
-  const handleAddNote = () => {
-    if (notes.length < 3) {
-      onChange([...notes, ""]);
-    }
+  const addExample = (text) => {
+    const emptyIdx = notes.findIndex((n) => !n.trim());
+    if (emptyIdx !== -1) setNote(emptyIdx, text);
+    else if (notes.length < MAX_NOTES) onChange([...notes, text]);
+    else setNote(notes.length - 1, text);
   };
-
-  const handleRemoveNote = (index) => {
-    if (notes.length > 1) {
-      onChange(notes.filter((_, i) => i !== index));
-    }
-  };
-
-  const presetDirectives = [
-    {
-      label: "Solar Wash (Noon-2PM)",
-      text: "Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.",
-    },
-    {
-      label: "Evening Reserve (6PM-9PM)",
-      text: "Keep battery energy at or above 300 kWh from 6 PM to 9 PM for expected campus conference backup.",
-    },
-    {
-      label: "Peak Grid Cap (5PM-8PM)",
-      text: "Utility alert: limit grid draw to a maximum of 180 kWh per hour between 5 PM and 8 PM.",
-    },
-    {
-      label: "Maintenance Lock (1PM-3PM)",
-      text: "Battery inverter maintenance scheduled between 1 PM and 3 PM. Battery discharge is prohibited during this window.",
-    },
-  ];
 
   return (
-    <div
-      style={{
-        background: "var(--bg-card-secondary)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)",
-        padding: "20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Sparkles size={18} color="var(--accent-lime)" />
-          <h4 style={{ fontSize: "1rem", fontWeight: 700 }}>Operator Directives & Notes</h4>
+    <section className="card" aria-labelledby="notes-title">
+      <div className="card-header">
+        <div>
+          <h2 id="notes-title" className="card-title">
+            <MessageSquareText size={18} strokeWidth={1.75} aria-hidden="true" />
+            Operator notes
+            <span className="muted tabular" style={{ fontSize: "var(--text-xs)", fontWeight: 500 }}>
+              {notes.length} of {MAX_NOTES}
+            </span>
+          </h2>
+          <p className="card-desc">
+            Plain language. The LLM turns each note into one constraint, or ignores it if it doesn&apos;t affect
+            today&apos;s dispatch.
+          </p>
         </div>
-        <span
-          className="badge badge-cyan"
-          style={{ display: "flex", alignItems: "center", gap: "4px" }}
-        >
-          <span>LLM Interpreted</span>
-          <span style={{ opacity: 0.7 }}>({notes.length}/3 notes)</span>
-        </span>
       </div>
 
-      <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        Natural language instructions provided by campus operators. GridWise extracts structured constraints (solar reduction, battery reserve floor, grid caps, etc.) and filters out conversational distractors.
-      </p>
-
-      {/* Preset Suggestions Quick Chips */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
-          Quick Templates:
-        </span>
-        {presetDirectives.map((preset, pIdx) => (
-          <button
-            key={pIdx}
-            type="button"
-            onClick={() => {
-              // Replace active empty note or append
-              const emptyIdx = notes.findIndex((n) => !n.trim());
-              if (emptyIdx !== -1) {
-                handleNoteChange(emptyIdx, preset.text);
-              } else if (notes.length < 3) {
-                onChange([...notes, preset.text]);
-              } else {
-                handleNoteChange(0, preset.text);
-              }
-            }}
-            className="filter-pill-select"
-            style={{ fontSize: "0.725rem", padding: "4px 10px" }}
-          >
-            + {preset.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Notes Textarea List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div className="stack-sm">
         {notes.map((note, index) => (
           <div key={index} className="operator-note-box">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <MessageSquare size={14} color="var(--accent-lime)" />
-                <span style={{ fontSize: "0.775rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                  Operator Note #{index + 1}
-                </span>
-              </div>
+            <div className="row-between">
+              <label htmlFor={`note-${index}`} className="form-label">
+                Note {index + 1}
+              </label>
               {notes.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => handleRemoveNote(index)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--accent-rose)",
-                    cursor: "pointer",
-                    padding: "4px",
-                    display: "flex",
-                  }}
+                  onClick={() => onChange(notes.filter((_, i) => i !== index))}
+                  className="icon-button danger"
+                  style={{ width: 28, height: 28, border: "none" }}
+                  aria-label={`Remove note ${index + 1}`}
                   title="Remove note"
                 >
-                  <Trash2 size={14} />
+                  <X size={14} />
                 </button>
               )}
             </div>
-
             <textarea
+              id={`note-${index}`}
               rows={3}
               className="form-textarea"
-              style={{
-                width: "100%",
-                background: "#080d13",
-                resize: "vertical",
-                fontSize: "0.85rem",
-                lineHeight: "1.4",
-              }}
-              placeholder="e.g. Facilities will wash the rooftop solar panels from noon until 2 PM. Usable solar should be 25% of forecast."
+              placeholder="e.g. Keep at least 200 kWh in the battery from 7 PM to 10 PM."
               value={note}
-              onChange={(e) => handleNoteChange(index, e.target.value)}
+              onChange={(e) => setNote(index, e.target.value)}
+              aria-invalid={!note.trim() ? "true" : undefined}
             />
-
-            <div style={{ display: "flex", justifyContent: "flex-end", fontSize: "0.7rem", color: "var(--text-muted)" }}>
-              {note.length} characters
-            </div>
           </div>
         ))}
       </div>
 
-      {notes.length < 3 && (
-        <button
-          type="button"
-          onClick={handleAddNote}
-          className="btn-secondary"
-          style={{ width: "100%", height: "38px", borderStyle: "dashed" }}
-        >
+      <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+        <span className="form-hint" style={{ marginRight: 2 }}>
+          Examples:
+        </span>
+        {EXAMPLE_NOTES.map((ex) => (
+          <button key={ex.label} type="button" className="chip-button" onClick={() => addExample(ex.text)} title={ex.text}>
+            {ex.label}
+          </button>
+        ))}
+      </div>
+
+      {notes.length < MAX_NOTES && (
+        <button type="button" onClick={() => onChange([...notes, ""])} className="btn-secondary btn-dashed btn-block">
           <Plus size={16} />
-          <span>Add Operator Note ({notes.length}/3)</span>
+          <span>Add note</span>
         </button>
       )}
-    </div>
+    </section>
   );
 }

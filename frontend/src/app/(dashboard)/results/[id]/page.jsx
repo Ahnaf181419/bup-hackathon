@@ -77,7 +77,7 @@ export default function ResultDetailPage() {
             <p className="page-subtitle">
               {isReference
                 ? "Published reference answer from the public sample pack."
-                : "24-hour least-cost plan produced by GridWise."}
+                : "24-hour least-cost plan produced by EnergiQ."}
             </p>
           </div>
         </div>

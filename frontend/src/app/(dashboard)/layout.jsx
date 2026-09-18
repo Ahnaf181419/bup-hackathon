@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }) {
       </main>
       <AIAssistantDrawer />
       <footer className="app-footer">
-        <span>GridWise · BUP CSE Fest 2026 Hackathon</span>
+        <span>EnergiQ · BUP CSE Fest 2026 Hackathon</span>
         <span>LLM: {LLM_MODEL_LABEL} · Solver: javascript-lp-solver</span>
       </footer>
     </div>

@@ -67,7 +67,7 @@ export function ResultSummaryCard({ result, isReference }) {
           <h2 id="summary-title" className="card-title">Plan summary</h2>
           {isReference ? (
             <span className="badge badge-outline">
-              <BookOpen size={12} aria-hidden="true" /> Reference answer, not a GridWise run
+              <BookOpen size={12} aria-hidden="true" /> Reference answer, not an EnergiQ run
             </span>
           ) : (
             <span className="badge badge-lime" title="The backend replays every hour before returning a plan">

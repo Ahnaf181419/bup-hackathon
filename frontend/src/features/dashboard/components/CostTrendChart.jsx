@@ -109,7 +109,7 @@ export function CostTrendChart({ points = [], isLoading = false }) {
                   titleFormatter={(l) => `Run #${l}`}
                   rows={(d) => [
                     { label: "Total cost", value: `${d.cost.toLocaleString("en-US", { maximumFractionDigits: 0 })} BDT`, color: COLORS.grid },
-                    { label: d.ref ? "Reference answer" : "GridWise run", value: d.id },
+                    { label: d.ref ? "Reference answer" : "EnergiQ run", value: d.id },
                     ...(d.cost === best ? [{ label: "Best on record", value: "", color: "var(--accent-lime)" }] : []),
                   ]}
                 />

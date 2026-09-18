@@ -20,7 +20,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: "GridWise — Smart Campus Energy Optimization Engine",
+  title: "EnergiQ — Smart Campus Energy Optimization Engine",
   description: "BUP CSE Fest 2026 Hackathon · LLM-assisted 24-hour campus energy scheduling, storage management, and operator directive interpretation",
 };
 

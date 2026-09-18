@@ -1,8 +1,8 @@
-# GridWise LLM — Smart Campus Energy Optimization
+# EnergiQ — Smart Campus Energy Optimization (GridWise LLM)
 
 BUP CSE Fest 2026 Hackathon · Online Preliminary.
 
-GridWise plans a campus microgrid's next 24 hours: when to import from the grid, how much solar to use, and when to charge or discharge the battery, at minimum grid cost. Operators write free-text notes such as *"Panels are washed noon–2 PM, only 25% of solar usable"*. An **LLM** turns each note into a structured directive, **deterministic guardrails** check it, an **exact LP optimizer** solves the schedule, and a **replay validator** checks the plan against every rule before it is returned.
+EnergiQ plans a campus microgrid's next 24 hours: when to import from the grid, how much solar to use, and when to charge or discharge the battery, at minimum grid cost. Operators write free-text notes such as *"Panels are washed noon–2 PM, only 25% of solar usable"*. An **LLM** turns each note into a structured directive, **deterministic guardrails** check it, an **exact LP optimizer** solves the schedule, and a **replay validator** checks the plan against every rule before it is returned.
 
 Team: **[Team Name]** — Members: [Name 1], [Name 2], [Name 3]
 

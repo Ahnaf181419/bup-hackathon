@@ -71,7 +71,7 @@ export function RecentRunsList({ runs = [], isLoading, selectedId, onSelectRun }
                       {run.isReference && <span className="run-ref-tag" title="Reference answer from the public sample pack">REF</span>}
                     </span>
                     <span className="run-item-meta">
-                      {run.isReference ? "Reference answer" : when ? `GridWise run · ${when}` : "GridWise run"}
+                      {run.isReference ? "Reference answer" : when ? `EnergiQ run · ${when}` : "EnergiQ run"}
                     </span>
                   </span>
                   <span className="run-item-figures">

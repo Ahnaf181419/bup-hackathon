@@ -42,7 +42,7 @@ export function ScenarioForm() {
           <h1 className="page-title">Optimize a scenario</h1>
           <p className="page-subtitle">
             Enter the day&apos;s demand, solar forecast, tariffs and battery limits, plus up to three operator notes.
-            GridWise interprets the notes and returns the least-cost 24-hour plan.
+            EnergiQ interprets the notes and returns the least-cost 24-hour plan.
           </p>
         </div>
         <div className="header-actions">

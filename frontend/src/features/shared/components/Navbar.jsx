@@ -17,11 +17,11 @@ export function Navbar() {
 
   return (
     <header className="top-nav">
-      <Link href="/dashboard" className="brand-section" aria-label="GridWise dashboard">
+      <Link href="/dashboard" className="brand-section" aria-label="EnergiQ dashboard">
         <span className="brand-logo-icon" aria-hidden="true">
           <Zap size={16} strokeWidth={2.25} fill="currentColor" />
         </span>
-        <span className="brand-title">GridWise</span>
+        <span className="brand-title">EnergiQ</span>
         <span className="brand-badge">BUP CSE Fest 2026</span>
       </Link>
 

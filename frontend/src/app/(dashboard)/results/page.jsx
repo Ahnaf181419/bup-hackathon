@@ -10,7 +10,7 @@ import { formatBdt, formatKwh, formatDuration } from "@/features/shared/lib/form
 
 const FILTERS = [
   { key: "all", label: "All" },
-  { key: "runs", label: "GridWise runs" },
+  { key: "runs", label: "EnergiQ runs" },
   { key: "reference", label: "Reference answers" },
 ];
 
@@ -120,7 +120,7 @@ export default function ResultsListPage() {
                       {item.isReference ? (
                         <span className="badge badge-outline">Reference</span>
                       ) : (
-                        <span className="badge badge-lime">GridWise</span>
+                        <span className="badge badge-lime">EnergiQ</span>
                       )}
                     </td>
                     <td className="num">{formatBdt(item.total_cost_bdt)}</td>

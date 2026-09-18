@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm";
 
 const DEFAULT_WELCOME = {
   role: "assistant",
-  text: "Hello, Operator! I am your GridWise AI Assistant powered by Google Gemini 3.1 Flash-Lite. Ask me about energy scheduling, operator directive syntax, battery storage constraints, or how to phrase instructions for the optimizer.",
+  text: "Hello, Operator! I am your EnergiQ AI Assistant powered by Google Gemini 3.1 Flash-Lite. Ask me about energy scheduling, operator directive syntax, battery storage constraints, or how to phrase instructions for the optimizer.",
 };
 
 export function AIAssistantDrawer() {
@@ -114,7 +114,7 @@ export function AIAssistantDrawer() {
       if (lower.includes("battery") || lower.includes("reserve")) {
         smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and minimum_energy_kwh: 300.";
       } else if (lower.includes("neutral") || lower.includes("end of day") || lower.includes("soc")) {
-        smartReply = "GridWise enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
+        smartReply = "EnergiQ enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
       }
       const updated = [...newMessages, { role: "assistant", text: smartReply }];
       setMessages(updated);
@@ -170,7 +170,7 @@ export function AIAssistantDrawer() {
                 <Bot size={16} />
               </div>
               <div>
-                <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
+                <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>EnergiQ Copilot</h4>
                 <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                   {LLM_MODEL_LABEL}
                 </span>

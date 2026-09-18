@@ -169,8 +169,16 @@ function solarFraction(text) {
 function interpretOne(note) {
   const text = normalizeText(note);
   const windows = findWindows(text);
+  const kwh = text.match(RE.kwh);
+  const pct = text.match(RE.percent);
+
   const energyRelated =
-    RE.solar.test(text) || RE.battery.test(text) || RE.charge.test(text) || RE.discharge.test(text) || RE.grid.test(text);
+    RE.solar.test(text) ||
+    RE.battery.test(text) ||
+    RE.charge.test(text) ||
+    RE.discharge.test(text) ||
+    RE.grid.test(text) ||
+    (RE.reserve.test(text) && (kwh || pct));
 
   if (!energyRelated || RE.otherDay.test(text)) {
     return { directive_type: "no_op", explanation: "No dispatch-relevant constraint for this operating day." };
@@ -178,9 +186,6 @@ function interpretOne(note) {
   if (windows.length === 0) {
     return { directive_type: "no_op", explanation: "No clear hour window could be identified." };
   }
-
-  const kwh = text.match(RE.kwh);
-  const pct = text.match(RE.percent);
 
   if (RE.solar.test(text) && !RE.battery.test(text)) {
     const f = solarFraction(text);
@@ -193,11 +198,11 @@ function interpretOne(note) {
     return { directive_type: "max_grid_window", windows, max_grid_kwh: Number(kwh[1]) };
   }
 
-  if (RE.battery.test(text) && RE.reserve.test(text)) {
+  if ((RE.battery.test(text) || kwh || pct) && RE.reserve.test(text)) {
     if (kwh) return { directive_type: "minimum_battery_reserve", windows, reserve_kwh: Number(kwh[1]) };
     if (pct) return { directive_type: "minimum_battery_reserve", windows, reserve_percent_of_capacity: Number(pct[1]) };
     const frac = fractionIn(text);
-    if (frac !== null && /capacity|full|battery/.test(text)) {
+    if (frac !== null) {
       return { directive_type: "minimum_battery_reserve", windows, reserve_percent_of_capacity: frac * 100 };
     }
   }

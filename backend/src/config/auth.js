@@ -1,6 +1,7 @@
 import { MongoClient } from "mongodb";
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import { bearer } from "better-auth/plugins";
 import { env } from "./env.js";
 
 const client = new MongoClient(env.MONGO_URI);
@@ -14,4 +15,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  plugins: [bearer()],
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+    },
+  },
 });
+

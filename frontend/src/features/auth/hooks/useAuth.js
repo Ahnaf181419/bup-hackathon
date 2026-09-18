@@ -13,7 +13,17 @@ export function useAuth() {
   // Check Better Auth session
   const checkSession = useCallback(async () => {
     try {
-      // Check local storage demo session fallback first
+      // Check stored user session first
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("gridwise_auth_user") : null;
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          setUser(parsed);
+          setSession({ user: parsed });
+        } catch (e) {}
+      }
+
+      // Check local storage demo session fallback
       const localMock = typeof window !== "undefined" ? localStorage.getItem("gridwise_mock_user") : null;
       if (localMock) {
         const parsed = JSON.parse(localMock);
@@ -27,18 +37,25 @@ export function useAuth() {
       if (res?.data?.session) {
         setSession(res.data.session);
         setUser(res.data.user);
-      } else {
+        if (typeof window !== "undefined" && res.data.user) {
+          localStorage.setItem("gridwise_auth_user", JSON.stringify(res.data.user));
+        }
+      } else if (!storedUser) {
         setSession(null);
         setUser(null);
       }
     } catch (err) {
       console.warn("Auth check: Backend auth unreachable or no active session", err);
-      // Fallback: check if we have a demo session
-      const localMock = typeof window !== "undefined" ? localStorage.getItem("gridwise_mock_user") : null;
-      if (localMock) {
-        const parsed = JSON.parse(localMock);
-        setUser(parsed);
-        setSession({ user: parsed });
+      // Fallback: check if we have a demo session or stored user
+      const stored = typeof window !== "undefined" 
+        ? (localStorage.getItem("gridwise_auth_user") || localStorage.getItem("gridwise_mock_user"))
+        : null;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setUser(parsed);
+          setSession({ user: parsed });
+        } catch (e) {}
       }
     } finally {
       setIsLoading(false);
@@ -55,8 +72,22 @@ export function useAuth() {
       if (res?.error) {
         throw new Error(res.error.message || "Failed to sign in");
       }
-      await checkSession();
-      router.push("/dashboard");
+      const loggedUser = res?.data?.user || { email, name: email.split("@")[0] };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("gridwise_auth_user", JSON.stringify(loggedUser));
+        if (res?.data?.token) {
+          localStorage.setItem("gridwise_auth_token", res.data.token);
+        }
+      }
+      setUser(loggedUser);
+      setSession({ user: loggedUser, token: res?.data?.token });
+      
+      // Navigate to dashboard cleanly
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      } else {
+        router.push("/dashboard");
+      }
       return res;
     } catch (err) {
       // If backend is down, allow quick demo operator sign in
@@ -68,9 +99,14 @@ export function useAuth() {
           role: "operator",
         };
         localStorage.setItem("gridwise_mock_user", JSON.stringify(demoUser));
+        localStorage.setItem("gridwise_auth_user", JSON.stringify(demoUser));
         setUser(demoUser);
         setSession({ user: demoUser });
-        router.push("/dashboard");
+        if (typeof window !== "undefined") {
+          window.location.href = "/dashboard";
+        } else {
+          router.push("/dashboard");
+        }
         return { user: demoUser };
       }
       throw err;
@@ -83,8 +119,22 @@ export function useAuth() {
       if (res?.error) {
         throw new Error(res.error.message || "Failed to sign up");
       }
-      await checkSession();
-      router.push("/dashboard");
+      const newUser = res?.data?.user || { name, email };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("gridwise_auth_user", JSON.stringify(newUser));
+        if (res?.data?.token) {
+          localStorage.setItem("gridwise_auth_token", res.data.token);
+        }
+      }
+      setUser(newUser);
+      setSession({ user: newUser, token: res?.data?.token });
+
+      // Navigate to dashboard cleanly
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      } else {
+        router.push("/dashboard");
+      }
       return res;
     } catch (err) {
       if (email && password) {
@@ -95,9 +145,14 @@ export function useAuth() {
           role: "operator",
         };
         localStorage.setItem("gridwise_mock_user", JSON.stringify(demoUser));
+        localStorage.setItem("gridwise_auth_user", JSON.stringify(demoUser));
         setUser(demoUser);
         setSession({ user: demoUser });
-        router.push("/dashboard");
+        if (typeof window !== "undefined") {
+          window.location.href = "/dashboard";
+        } else {
+          router.push("/dashboard");
+        }
         return { user: demoUser };
       }
       throw err;
@@ -112,10 +167,16 @@ export function useAuth() {
     }
     if (typeof window !== "undefined") {
       localStorage.removeItem("gridwise_mock_user");
+      localStorage.removeItem("gridwise_auth_user");
+      localStorage.removeItem("gridwise_auth_token");
     }
     setUser(null);
     setSession(null);
-    router.push("/login");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    } else {
+      router.push("/login");
+    }
   };
 
   return {
@@ -128,3 +189,4 @@ export function useAuth() {
     refresh: checkSession,
   };
 }
+

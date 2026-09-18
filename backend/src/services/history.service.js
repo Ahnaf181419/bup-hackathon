@@ -15,6 +15,7 @@ export async function saveOptimizationResult(userId, result, scenarioInput) {
       status: "optimal",
       processingTimeMs: result.processingTimeMs || 0,
       scenario_input: scenarioInput,
+      pipeline: result.meta || null,
     });
     return doc;
   } catch (err) {

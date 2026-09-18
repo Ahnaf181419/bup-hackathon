@@ -64,7 +64,7 @@ export function HourlyPlanTable({ plan, batteryCapacity = 1000 }) {
         </button>
       </div>
 
-      <div className="data-table-container" style={{ maxHeight: "500px", overflowY: "auto" }}>
+      <div className="data-table-container">
         <table className="custom-table">
           <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
             <tr>

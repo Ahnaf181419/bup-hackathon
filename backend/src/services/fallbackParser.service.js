@@ -173,10 +173,10 @@ function interpretOne(note) {
     RE.solar.test(text) || RE.battery.test(text) || RE.charge.test(text) || RE.discharge.test(text) || RE.grid.test(text);
 
   if (!energyRelated || RE.otherDay.test(text)) {
-    return { directive_type: "no_op", explanation: "No dispatch-relevant constraint for this operating day (fallback parser)." };
+    return { directive_type: "no_op", explanation: "No dispatch-relevant constraint for this operating day." };
   }
   if (windows.length === 0) {
-    return { directive_type: "no_op", explanation: "No clear hour window could be identified (fallback parser)." };
+    return { directive_type: "no_op", explanation: "No clear hour window could be identified." };
   }
 
   const kwh = text.match(RE.kwh);
@@ -209,7 +209,7 @@ function interpretOne(note) {
     return { directive_type: "no_charge_window", windows };
   }
 
-  return { directive_type: "no_op", explanation: "No supported directive recognized (fallback parser)." };
+  return { directive_type: "no_op", explanation: "No supported directive recognized." };
 }
 
 export function parseNotesDeterministically(notes) {

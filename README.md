@@ -42,7 +42,7 @@ POST /optimize-energy
 
 ### LLM role
 
-- **Provider/model:** Google Gemini via `@google/genai`. The primary model is `GEMINI_MODEL` (default `gemini-3.6-flash`). `GEMINI_FALLBACK_MODEL` (default `gemini-2.5-flash`) is tried when the primary is rate-limited, slow or unavailable.
+- **Provider/model:** Google Gemini via `@google/genai`. The primary model is `GEMINI_MODEL` (default `gemini-3.1-flash-lite`). `GEMINI_FALLBACK_MODEL` (default `gemini-3.5-flash-lite`) is tried when the primary is rate-limited, slow or unavailable.
 - **One call per scenario** covers all notes. It uses structured JSON output (response schema) at `temperature: 0`, and minimal thinking where the model supports it.
 - The model returns `directive_type`, `windows: [{start_hour, end_hour}]`, and values *as stated* (`usable_solar_fraction`, `reserve_kwh` or `reserve_percent_of_capacity`, `max_grid_kwh`).
 - **Code does the arithmetic:** it expands windows (start inclusive, end exclusive, wrapping past midnight) and converts percentages of capacity into kWh.
@@ -85,18 +85,26 @@ Requires Node.js ≥ 20.
 
 ```bash
 git clone <repo-url> && cd <repo>/backend
-cp .env.example .env          # set GEMINI_API_KEY (the other variables are optional)
+# create backend/.env with the variables below (at minimum GEMINI_API_KEY); it is gitignored
 npm install
 npm start                     # http://localhost:3001
 ```
 
-### Environment variables (names only — never commit values)
+### Environment variables (`backend/.env`, names only — never commit values)
+
+Minimal `backend/.env`:
+
+```bash
+GEMINI_API_KEY=your-key-here
+```
+
+Everything else has a default:
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `GEMINI_API_KEY` | yes (for LLM) | Gemini API key. Without it the service still answers using the backup parser only. |
-| `GEMINI_MODEL` | no | Primary model (default `gemini-3.6-flash`) |
-| `GEMINI_FALLBACK_MODEL` | no | Second model on quota/timeout (default `gemini-2.5-flash`; empty disables) |
+| `GEMINI_MODEL` | no | Primary model (default `gemini-3.1-flash-lite`) |
+| `GEMINI_FALLBACK_MODEL` | no | Second model on quota/timeout (default `gemini-3.5-flash-lite`; empty disables) |
 | `LLM_TIMEOUT_MS` / `LLM_TOTAL_BUDGET_MS` | no | Per-call timeout (default 9000) and total LLM budget per request (default 15000) |
 | `HOST` / `PORT` | no | Bind address (default `0.0.0.0`) and port (default `3001`) |
 | `MONGO_URI`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN` | no | Dashboard only (history, login). The judged endpoints never use them. |

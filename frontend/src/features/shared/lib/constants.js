@@ -17,7 +17,7 @@ export const BATTERY_ACTIONS = {
 };
 
 // Display label only; the backend's GEMINI_MODEL env var decides the model actually used.
-export const LLM_MODEL_LABEL = process.env.NEXT_PUBLIC_LLM_MODEL_LABEL || "Google Gemini (gemini-3.6-flash)";
+export const LLM_MODEL_LABEL = process.env.NEXT_PUBLIC_LLM_MODEL_LABEL || "Google Gemini (gemini-3.1-flash-lite)";
 
 export const OPTIMIZATION_STATUS = {
   OPTIMAL: "optimal",

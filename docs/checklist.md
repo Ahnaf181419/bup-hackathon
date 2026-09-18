@@ -14,7 +14,7 @@ Docs & reproducibility 10. Video = tie-break only.
 - [ ] Repo created **after** question reveal, kept **private** during event, made **public** after deadline
 - [ ] Remove MongoDB / Better Auth / user routes from the startup path (server must not exit if DB is missing)
 - [ ] `server.js` listens on `0.0.0.0` and `PORT` env var
-- [ ] `.env` never committed; `.env.example` lists every variable name with no values
+- [ ] `.env` never committed; every variable name (no values) documented in the README
 - [ ] Error handler returns a generic message on 500 — no stack traces, no `err.message` leaks, no secrets in logs
 
 ## 1. API contract (exact names)

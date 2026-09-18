@@ -14,6 +14,12 @@ export class ValidationError extends AppError {
   }
 }
 
+export class UnprocessableError extends AppError {
+  constructor(message = "Request is semantically invalid", details = null) {
+    super(message, 422, details);
+  }
+}
+
 export class UnauthorizedError extends AppError {
   constructor(message = "Unauthorized") {
     super(message, 401);

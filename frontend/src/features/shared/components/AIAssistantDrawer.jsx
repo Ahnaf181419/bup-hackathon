@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Sparkles, Send, X, Bot, User, CornerDownLeft } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export function AIAssistantDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,14 +28,14 @@ export function AIAssistantDrawer() {
     try {
       // Call backend AI endpoint
       const res = await api.post("/api/ai/generate", { prompt: userText });
-      const reply = res?.text || res?.response || res?.message || "Directive received and parsed successfully.";
+      const reply = res?.result || res?.text || "No response from the assistant.";
       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
     } catch (err) {
       // Graceful domain-specific offline assistant response
       setTimeout(() => {
-        let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with window: [13, 14] and factor: 0.30.";
+        let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with hours: [13, 14] and factor: 0.3.";
         if (userText.toLowerCase().includes("battery") || userText.toLowerCase().includes("reserve")) {
-          smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and reserve_floor_kwh: 300.";
+          smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and minimum_energy_kwh: 300.";
         } else if (userText.toLowerCase().includes("neutral") || userText.toLowerCase().includes("end of day")) {
           smartReply = "GridWise enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
         }
@@ -133,7 +134,7 @@ export function AIAssistantDrawer() {
               <div>
                 <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
                 <span style={{ fontSize: "0.7rem", color: "var(--accent-lime)" }}>
-                  Gemini 2.5 Active
+                  {LLM_MODEL_LABEL}
                 </span>
               </div>
             </div>

@@ -8,6 +8,7 @@ import { RecentRunsList } from "@/features/dashboard/components/RecentRunsList";
 import { QuickRunPromptCard } from "@/features/dashboard/components/QuickRunPromptCard";
 import { useDashboardStats } from "@/features/dashboard/hooks/useDashboardStats";
 import { useHistory } from "@/features/results/hooks/useHistory";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export default function DashboardPage() {
   const { stats } = useDashboardStats();
@@ -65,7 +66,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="filter-pill-select">
-            <span>LLM: Gemini 2.5 Active</span>
+            <span>LLM: {LLM_MODEL_LABEL}</span>
             <Sparkles size={13} color="var(--accent-lime)" />
           </div>
         </div>

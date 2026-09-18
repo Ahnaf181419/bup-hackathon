@@ -3,16 +3,19 @@
 import React from "react";
 import Link from "next/link";
 import { Zap, Play, ArrowRight, ShieldCheck, Sun, BatteryCharging, CheckCircle2 } from "lucide-react";
+import { getSampleCaseById } from "@/features/shared/lib/sampleCases";
 
 export function QuickRunPromptCard({ selectedRun }) {
+  // Without a run yet, show SAMPLE-01's published reference numbers (labelled as reference).
+  const reference = getSampleCaseById("SAMPLE-01");
   const scenario = selectedRun || {
-    scenario_id: "SAMPLE-01",
-    label: "Solar cleaning + distractor",
-    total_cost_bdt: 1475.0,
-    total_grid_kwh: 195.0,
-    peak_grid_kwh: 35.0,
+    scenario_id: reference.input.scenario_id,
+    label: `${reference.label} (reference)`,
+    total_cost_bdt: reference.expected_output.total_cost_bdt,
+    total_grid_kwh: reference.expected_output.total_grid_kwh,
+    peak_grid_kwh: reference.expected_output.peak_grid_kwh,
     status: "optimal",
-    processingTimeMs: 412,
+    processingTimeMs: null,
   };
 
   const id = scenario._id || scenario.scenario_id;
@@ -127,7 +130,7 @@ export function QuickRunPromptCard({ selectedRun }) {
             </span>
           </div>
           <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "6px", color: "var(--text-primary)" }}>
-            {scenario.peak_grid_kwh ? `${scenario.peak_grid_kwh.toFixed(1)} kWh` : "35.0 kWh"}
+            {typeof scenario.peak_grid_kwh === "number" ? `${scenario.peak_grid_kwh.toFixed(1)} kWh` : "—"}
           </div>
           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>Capped & load-shifted</span>
         </div>
@@ -150,7 +153,7 @@ export function QuickRunPromptCard({ selectedRun }) {
           <div>
             <div style={{ fontSize: "0.725rem", color: "var(--text-muted)" }}>Total Grid Import</div>
             <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-primary)" }}>
-              {scenario.total_grid_kwh ? `${scenario.total_grid_kwh.toFixed(1)} kWh` : "195.0 kWh"}
+              {typeof scenario.total_grid_kwh === "number" ? `${scenario.total_grid_kwh.toFixed(1)} kWh` : "—"}
             </div>
           </div>
           <div>

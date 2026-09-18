@@ -1,21 +1,23 @@
 // GridWise System Constants
 
+// Must match the Problem Statement / backend guardrails exactly.
 export const DIRECTIVE_TYPES = {
-  PRESERVE_MINIMUM_STORAGE: "preserve_minimum_storage",
-  FORCE_BATTERY_DISCHARGE: "force_battery_discharge",
-  FORCE_BATTERY_CHARGE: "force_battery_charge",
-  AVOID_GRID_IMPORT: "avoid_grid_import",
-  GRID_IMPORT_LIMIT: "grid_import_limit",
-  MAINTENANCE_LOCK: "maintenance_lock",
-  SOLAR_CURTAILMENT: "solar_curtailment",
-  NO_DIRECTIVE: "no_directive",
+  SOLAR_REDUCTION: "solar_reduction",
+  MINIMUM_BATTERY_RESERVE: "minimum_battery_reserve",
+  NO_CHARGE_WINDOW: "no_charge_window",
+  NO_DISCHARGE_WINDOW: "no_discharge_window",
+  MAX_GRID_WINDOW: "max_grid_window",
+  NO_OP: "no_op",
 };
 
 export const BATTERY_ACTIONS = {
   CHARGE: "charge",
   DISCHARGE: "discharge",
-  HOLD: "hold",
+  IDLE: "idle",
 };
+
+// Display label only; the backend's GEMINI_MODEL env var decides the model actually used.
+export const LLM_MODEL_LABEL = process.env.NEXT_PUBLIC_LLM_MODEL_LABEL || "Google Gemini (gemini-3.6-flash)";
 
 export const OPTIMIZATION_STATUS = {
   OPTIMAL: "optimal",

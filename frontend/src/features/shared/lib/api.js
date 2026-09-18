@@ -30,7 +30,9 @@ export async function apiFetch(endpoint, options = {}) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const errorMsg = (data && (data.message || data.error)) || `Request failed with status ${response.status}`;
+      const base = (data && (data.message || data.error)) || `Request failed with status ${response.status}`;
+      const details = Array.isArray(data?.details) ? `: ${data.details.slice(0, 3).join("; ")}` : "";
+      const errorMsg = base + details;
       throw new ApiError(errorMsg, response.status, data);
     }
 

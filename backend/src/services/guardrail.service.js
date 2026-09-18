@@ -1,91 +1,208 @@
-import { logger } from "../utils/logger.js";
+/**
+ * Deterministic guardrails between the LLM and the optimizer.
+ *
+ * Accepts a candidate directive (LLM intermediate format or spec format) and either returns it
+ * in the exact Problem Statement shape or rejects it. It never fills in missing values: a
+ * directive without a usable window or number is rejected so the caller can fall back.
+ *
+ * Spec shapes:
+ *   solar_reduction          { hours, factor }              factor = usable fraction in [0, 1]
+ *   minimum_battery_reserve  { hours, minimum_energy_kwh }  0 <= kWh <= capacity
+ *   no_charge_window         { hours }
+ *   no_discharge_window      { hours }
+ *   max_grid_window          { hours, max_grid_kwh }        kWh >= 0
+ *   no_op                    applies=false, structured_adjustment=null
+ */
 
-const VALID_DIRECTIVES = new Set([
+export const DIRECTIVE_TYPES = [
   "solar_reduction",
   "minimum_battery_reserve",
   "no_charge_window",
   "no_discharge_window",
   "max_grid_window",
   "no_op",
-]);
+];
 
-export function validateAndSanitizeDirectives(rawInterpretations, notesCount, battery = {}) {
-  const sanitized = [];
+const TYPE_SET = new Set(DIRECTIVE_TYPES);
+const MAX_EXPLANATION = 400;
 
-  for (let idx = 0; idx < notesCount; idx++) {
-    const item = rawInterpretations?.[idx] || {
-      note_index: idx,
-      applies: false,
-      directive_type: "no_op",
-      structured_adjustment: null,
-      explanation: "No directive provided.",
-    };
+const isFiniteNumber = (v) => typeof v === "number" && Number.isFinite(v);
+const round = (v, dp) => Math.round(v * 10 ** dp) / 10 ** dp;
 
-    let { note_index, applies, directive_type, structured_adjustment, explanation } = item;
-
-    // Ensure note_index is sequential
-    note_index = idx;
-
-    // Validate directive type enum
-    if (!VALID_DIRECTIVES.has(directive_type)) {
-      logger.warn(`[guardrail] Unknown directive_type '${directive_type}'. Coercing to 'no_op'.`);
-      directive_type = "no_op";
-      applies = false;
-      structured_adjustment = null;
-    }
-
-    // Enforce no_op invariant
-    if (directive_type === "no_op") {
-      applies = false;
-      structured_adjustment = null;
-      explanation = explanation || "Note does not impose physical constraints.";
-    } else {
-      applies = true;
-      structured_adjustment = sanitizeAdjustment(directive_type, structured_adjustment, battery);
-    }
-
-    sanitized.push({
-      note_index,
-      applies,
-      directive_type,
-      structured_adjustment,
-      explanation: explanation || `Applied ${directive_type} constraint.`,
-    });
-  }
-
-  return sanitized;
+function toNumber(v) {
+  if (isFiniteNumber(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
+  return null;
 }
 
-function sanitizeAdjustment(type, adj, battery) {
-  if (!adj || typeof adj !== "object") {
-    adj = {};
+/** Expand an hour window. start inclusive, end exclusive, wraps past midnight (22 -> 2 = 22,23,0,1). */
+export function expandWindow(start, end) {
+  const s = toNumber(start);
+  let e = toNumber(end);
+  if (s === null || e === null || !Number.isInteger(s) || !Number.isInteger(e)) return null;
+  if (e === 0 && s > 0) e = 24; // "until midnight"
+  if (s < 0 || s > 23 || e < 0 || e > 24 || s === e) return null;
+  const hours = [];
+  if (e > s) {
+    for (let h = s; h < e; h++) hours.push(h);
+  } else {
+    for (let h = s; h < 24; h++) hours.push(h);
+    for (let h = 0; h < e; h++) hours.push(h);
+  }
+  return hours;
+}
+
+/** Collect hours from any supported representation; returns unique ascending ints or null. */
+function extractHours(raw) {
+  const collected = [];
+
+  const explicit = Array.isArray(raw.hours) ? raw.hours : Array.isArray(raw.window) ? raw.window : null;
+  if (explicit) {
+    for (const h of explicit) {
+      const n = toNumber(h);
+      if (n === null || !Number.isInteger(n) || n < 0 || n > 23) return null;
+      collected.push(n);
+    }
   }
 
-  // Sanitize hour window (convert to unique ascending integers 0-23)
-  let window = Array.isArray(adj.window) ? adj.window : Array.isArray(adj.hours) ? adj.hours : [];
-  window = [...new Set(window.map((h) => parseInt(h, 10)))]
-    .filter((h) => !isNaN(h) && h >= 0 && h <= 23)
-    .sort((a, b) => a - b);
-
-  if (window.length === 0) {
-    // Default fallback window if LLM missed it
-    window = [12, 13];
+  const windows = Array.isArray(raw.windows) ? [...raw.windows] : [];
+  if (raw.start_hour !== undefined || raw.end_hour !== undefined) {
+    windows.push({ start_hour: raw.start_hour, end_hour: raw.end_hour });
+  }
+  for (const w of windows) {
+    if (!w || typeof w !== "object") return null;
+    const expanded = expandWindow(w.start_hour, w.end_hour);
+    if (!expanded) return null;
+    collected.push(...expanded);
   }
 
-  const result = { window };
+  const unique = [...new Set(collected)].sort((a, b) => a - b);
+  return unique.length > 0 ? unique : null;
+}
 
-  if (type === "solar_reduction") {
-    let factor = typeof adj.factor === "number" ? adj.factor : 0.25;
-    result.factor = Math.max(0, Math.min(1, factor));
-  } else if (type === "minimum_battery_reserve") {
-    let floor = typeof adj.reserve_floor_kwh === "number" ? adj.reserve_floor_kwh : (battery.minimum_energy_kwh || 150);
-    // Floor cannot exceed total battery capacity
-    const maxAllowed = battery.capacity_kwh || 1000;
-    result.reserve_floor_kwh = Math.min(maxAllowed, Math.max(battery.minimum_energy_kwh || 0, floor));
-  } else if (type === "max_grid_window") {
-    let cap = typeof adj.max_grid_kwh === "number" ? adj.max_grid_kwh : 200;
-    result.max_grid_kwh = Math.max(0, cap);
+function solarFactor(raw) {
+  let factor = toNumber(raw.factor ?? raw.usable_solar_fraction);
+  if (factor === null) {
+    const reduction = toNumber(raw.reduction_percent);
+    if (reduction !== null) factor = 1 - reduction / 100;
+  }
+  if (factor === null) return null;
+  // A value like 25 almost certainly means 25 %.
+  if (factor > 1 && factor <= 100) factor = factor / 100;
+  if (factor < 0 || factor > 1) return null;
+  return round(factor, 6);
+}
+
+function reserveKwh(raw, battery) {
+  let kwh = toNumber(raw.minimum_energy_kwh ?? raw.reserve_kwh ?? raw.reserve_floor_kwh);
+  if (kwh === null) {
+    const pct = toNumber(raw.reserve_percent_of_capacity);
+    if (pct !== null) kwh = (pct / 100) * battery.capacity_kwh;
+  }
+  if (kwh === null || kwh < 0 || kwh > battery.capacity_kwh + 1e-9) return null;
+  return round(kwh, 4);
+}
+
+function gridCap(raw) {
+  const kwh = toNumber(raw.max_grid_kwh);
+  if (kwh === null || kwh < 0) return null;
+  return round(kwh, 4);
+}
+
+function cleanExplanation(text, fallback) {
+  if (typeof text !== "string") return fallback;
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return fallback;
+  return t.length > MAX_EXPLANATION ? `${t.slice(0, MAX_EXPLANATION - 1)}…` : t;
+}
+
+export function noOp(noteIndex, explanation = "The note does not change energy dispatch for this day.") {
+  return {
+    note_index: noteIndex,
+    applies: false,
+    directive_type: "no_op",
+    structured_adjustment: null,
+    explanation,
+  };
+}
+
+const hoursLabel = (hours) => `hours ${hours.join(", ")}`;
+
+/**
+ * Normalize one candidate. Returns { ok: true, entry } or { ok: false, reason }.
+ */
+export function normalizeDirective(raw, noteIndex, battery) {
+  if (!raw || typeof raw !== "object") return { ok: false, reason: "missing interpretation" };
+
+  const type = typeof raw.directive_type === "string" ? raw.directive_type.trim().toLowerCase() : "";
+  if (!TYPE_SET.has(type)) return { ok: false, reason: `unsupported directive_type '${raw.directive_type}'` };
+
+  if (type === "no_op") {
+    return { ok: true, entry: noOp(noteIndex, cleanExplanation(raw.explanation, undefined)) };
   }
 
-  return result;
+  const hours = extractHours(raw);
+  if (!hours) return { ok: false, reason: `${type}: missing or invalid hour window` };
+
+  let adjustment;
+  let defaultExplanation;
+  switch (type) {
+    case "solar_reduction": {
+      const factor = solarFactor(raw);
+      if (factor === null) return { ok: false, reason: "solar_reduction: missing or invalid factor" };
+      adjustment = { hours, factor };
+      defaultExplanation = `Usable solar is ${round(factor * 100, 2)}% of forecast during ${hoursLabel(hours)}.`;
+      break;
+    }
+    case "minimum_battery_reserve": {
+      const kwh = reserveKwh(raw, battery);
+      if (kwh === null) return { ok: false, reason: "minimum_battery_reserve: missing or out-of-range kWh" };
+      adjustment = { hours, minimum_energy_kwh: kwh };
+      defaultExplanation = `Battery must hold at least ${kwh} kWh during ${hoursLabel(hours)}.`;
+      break;
+    }
+    case "max_grid_window": {
+      const cap = gridCap(raw);
+      if (cap === null) return { ok: false, reason: "max_grid_window: missing or invalid max_grid_kwh" };
+      adjustment = { hours, max_grid_kwh: cap };
+      defaultExplanation = `Grid import is capped at ${cap} kWh per hour during ${hoursLabel(hours)}.`;
+      break;
+    }
+    case "no_charge_window":
+      adjustment = { hours };
+      defaultExplanation = `Battery charging is not allowed during ${hoursLabel(hours)}.`;
+      break;
+    case "no_discharge_window":
+      adjustment = { hours };
+      defaultExplanation = `Battery discharging is not allowed during ${hoursLabel(hours)}.`;
+      break;
+    default:
+      return { ok: false, reason: `unsupported directive_type '${type}'` };
+  }
+
+  return {
+    ok: true,
+    entry: {
+      note_index: noteIndex,
+      applies: true,
+      directive_type: type,
+      structured_adjustment: adjustment,
+      explanation: cleanExplanation(raw.explanation, defaultExplanation),
+    },
+  };
+}
+
+/**
+ * Pick the candidate for each note (matched by note_index, else by position) and normalize it.
+ * Returns one result per note: { ok, entry?, reason? }.
+ */
+export function validateAndSanitizeDirectives(candidates, notesCount, battery) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  const results = [];
+  for (let i = 0; i < notesCount; i++) {
+    const byIndex = list.find((c) => c && toNumber(c.note_index) === i);
+    const candidate = byIndex ?? (list.length === notesCount ? list[i] : undefined);
+    results.push(normalizeDirective(candidate, i, battery));
+  }
+  return results;
 }

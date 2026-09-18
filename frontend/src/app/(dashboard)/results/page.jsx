@@ -168,7 +168,7 @@ export default function ResultsListPage() {
                   </td>
                   <td>
                     <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      {item.processingTimeMs ? `${item.processingTimeMs} ms` : "< 500 ms"}
+                      {item.processingTimeMs ? `${item.processingTimeMs} ms` : "—"}
                     </span>
                   </td>
                   <td>

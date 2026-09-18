@@ -5,6 +5,7 @@ import { AuthGuard } from "@/features/auth/components/AuthGuard";
 import { Navbar } from "@/features/shared/components/Navbar";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import { AIAssistantDrawer } from "@/features/shared/components/AIAssistantDrawer";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export default function DashboardLayout({ children }) {
   return (
@@ -34,7 +35,7 @@ export default function DashboardLayout({ children }) {
             </div>
             <div style={{ display: "flex", gap: "16px" }}>
               <span>Deterministic LP Solver: javascript-lp-solver</span>
-              <span>LLM Engine: Google Gemini 2.5</span>
+              <span>LLM Engine: {LLM_MODEL_LABEL}</span>
               <span>Tolerance: ±0.01 kWh/BDT</span>
             </div>
           </footer>

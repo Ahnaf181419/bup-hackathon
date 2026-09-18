@@ -2,13 +2,9 @@ import app from "./app.js";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 
-connectDB()
-  .then(() => {
-    app.listen(env.PORT, () => {
-      console.log(`[server] listening on http://localhost:${env.PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("[server] failed to start", err);
-    process.exit(1);
-  });
+// Listen first so /health is ready immediately; MongoDB (dashboard only) connects in the background.
+app.listen(env.PORT, env.HOST, () => {
+  console.log(`[server] listening on http://${env.HOST}:${env.PORT}`);
+});
+
+connectDB();

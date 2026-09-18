@@ -19,9 +19,9 @@ export const env = {
   // MongoDB only backs the dashboard UI; the judged endpoints never touch it.
   MONGO_URI: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/bup_hackathon",
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
-  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
   // Used when the primary model is rate-limited / unavailable (free-tier quotas are per model).
-  GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash",
+  GEMINI_FALLBACK_MODEL: process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.5-flash-lite",
   LLM_TIMEOUT_MS: int(process.env.LLM_TIMEOUT_MS, 9000),
   LLM_TOTAL_BUDGET_MS: int(process.env.LLM_TOTAL_BUDGET_MS, 15000),
   BETTER_AUTH_SECRET: authSecret,

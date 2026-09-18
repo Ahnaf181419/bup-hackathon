@@ -127,8 +127,9 @@ async function callModel(model, prompt, timeoutMs) {
     systemInstruction: SYSTEM_INSTRUCTION,
     temperature: 0,
     responseMimeType: "application/json",
+    // Timeout is enforced locally (abort + race). Don't pass httpOptions.timeout: the SDK forwards it
+    // as a server deadline and the API rejects deadlines under 10 s with HTTP 400.
     abortSignal: controller.signal,
-    httpOptions: { timeout: timeoutMs },
   };
   if (level.schema) config.responseJsonSchema = RESPONSE_SCHEMA;
   if (level.thinking) config.thinkingConfig = level.thinking;

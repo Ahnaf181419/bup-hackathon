@@ -49,7 +49,7 @@ export function DirectiveInterpretationCard({ interpretations }) {
       </div>
 
       <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        Gemini 2.5 interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
+        Google Gemini 3.1 Flash-Lite interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>

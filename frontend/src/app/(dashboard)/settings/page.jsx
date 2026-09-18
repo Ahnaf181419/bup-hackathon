@@ -101,7 +101,7 @@ export default function SettingsPage() {
                 type="text"
                 className="form-input"
                 disabled
-                value="Google Gemini 2.5 Flash (@google/genai)"
+                value="Google Gemini 3.1 Flash-Lite (@google/genai)"
               />
             </div>
 

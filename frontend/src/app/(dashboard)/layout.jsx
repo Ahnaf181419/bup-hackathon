@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }) {
             </div>
             <div style={{ display: "flex", gap: "16px" }}>
               <span>Deterministic LP Solver: javascript-lp-solver</span>
-              <span>LLM Engine: Google Gemini 2.5</span>
+              <span>LLM Engine: Google Gemini 3.1 Flash-Lite</span>
               <span>Tolerance: ±0.01 kWh/BDT</span>
             </div>
           </footer>

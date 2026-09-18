@@ -1,19 +1,94 @@
 "use client";
 
-import React, { useState } from "react";
-import { Sparkles, Send, X, Bot, User, CornerDownLeft } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Sparkles, Send, X, Bot, Trash2 } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+
+const DEFAULT_WELCOME = {
+  role: "assistant",
+  text: "Hello, Operator! I am your GridWise AI Assistant powered by Google Gemini 3.1 Flash-Lite. Ask me about energy scheduling, operator directive syntax, battery storage constraints, or how to phrase instructions for the optimizer.",
+};
 
 export function AIAssistantDrawer() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      text: "Hello, Operator! I am your GridWise AI Assistant powered by Google Gemini. Ask me about energy scheduling, operator directive syntax, battery storage constraints, or how to phrase instructions for the optimizer.",
-    },
-  ]);
+  const [messages, setMessages] = useState([DEFAULT_WELCOME]);
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const storageKey = `gridwise_chat_${user?.id || user?.email || "guest"}`;
+
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, isOpen]);
+
+  // Load chat history from backend (persisted in MongoDB per user) or localStorage
+  useEffect(() => {
+    const loadHistory = async () => {
+      // First load from localStorage for instant display
+      if (typeof window !== "undefined") {
+        try {
+          const cached = localStorage.getItem(storageKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setMessages(parsed);
+            }
+          }
+        } catch (e) {
+          // ignore cache parse errors
+        }
+      }
+
+      // Fetch persistent history from MongoDB
+      try {
+        const res = await api.get("/api/ai/history");
+        if (res?.messages && Array.isArray(res.messages) && res.messages.length > 0) {
+          const formatted = res.messages.map((m) => ({
+            role: m.role,
+            text: m.text,
+          }));
+          setMessages(formatted);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(storageKey, JSON.stringify(formatted));
+          }
+        }
+      } catch (err) {
+        console.warn("Could not sync remote chat history:", err?.message);
+      }
+    };
+
+    if (isOpen) {
+      loadHistory();
+    }
+  }, [isOpen, storageKey]);
+
+  const saveLocalHistory = (msgs) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(msgs));
+      } catch (e) {}
+    }
+  };
+
+  const handleClearHistory = async () => {
+    setMessages([DEFAULT_WELCOME]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(storageKey);
+    }
+    try {
+      await api.delete("/api/ai/history");
+    } catch (e) {}
+  };
 
   const handleSend = async (e) => {
     e?.preventDefault();
@@ -21,27 +96,28 @@ export function AIAssistantDrawer() {
 
     const userText = prompt.trim();
     setPrompt("");
-    setMessages((prev) => [...prev, { role: "user", text: userText }]);
+    const newMessages = [...messages, { role: "user", text: userText }];
+    setMessages(newMessages);
+    saveLocalHistory(newMessages);
     setIsLoading(true);
 
     try {
-      // Call backend AI endpoint
       const res = await api.post("/api/ai/generate", { prompt: userText });
-      const reply = res?.text || res?.response || res?.message || "Directive received and parsed successfully.";
-      setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
+      const reply = res?.result || res?.text || res?.response || res?.message?.text || "Directive received and processed.";
+      const updated = [...newMessages, { role: "assistant", text: reply }];
+      setMessages(updated);
+      saveLocalHistory(updated);
     } catch (err) {
-      // Graceful domain-specific offline assistant response
-      setTimeout(() => {
-        let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with window: [13, 14] and factor: 0.30.";
-        if (userText.toLowerCase().includes("battery") || userText.toLowerCase().includes("reserve")) {
-          smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and reserve_floor_kwh: 300.";
-        } else if (userText.toLowerCase().includes("neutral") || userText.toLowerCase().includes("end of day")) {
-          smartReply = "GridWise enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
-        }
-        setMessages((prev) => [...prev, { role: "assistant", text: smartReply }]);
-        setIsLoading(false);
-      }, 700);
-      return;
+      let smartReply = "I can help configure that directive! For example: 'Facilities will clean rooftop solar panels between 1 PM and 3 PM. Usable solar is roughly 30% of forecast.' This maps to directive_type: 'solar_reduction' with window: [13, 14] and factor: 0.30.";
+      const lower = userText.toLowerCase();
+      if (lower.includes("battery") || lower.includes("reserve")) {
+        smartReply = "For battery storage directives, use: 'Maintain at least 300 kWh reserve in battery between 6 PM and 9 PM.' This maps to 'minimum_battery_reserve' with hours: [18, 19, 20] and reserve_floor_kwh: 300.";
+      } else if (lower.includes("neutral") || lower.includes("end of day") || lower.includes("soc")) {
+        smartReply = "GridWise enforces End-of-Day SoC Neutrality: battery energy after hour 23 must equal the initial starting energy at hour 0 (within ±0.01 kWh tolerance) to ensure sustainable multi-day cycling.";
+      }
+      const updated = [...newMessages, { role: "assistant", text: smartReply }];
+      setMessages(updated);
+      saveLocalHistory(updated);
     } finally {
       setIsLoading(false);
     }
@@ -91,8 +167,8 @@ export function AIAssistantDrawer() {
             position: "fixed",
             bottom: "28px",
             right: "28px",
-            width: "380px",
-            height: "520px",
+            width: "390px",
+            height: "530px",
             background: "var(--bg-card)",
             border: "1px solid var(--border-medium)",
             borderRadius: "var(--radius-xl)",
@@ -133,18 +209,28 @@ export function AIAssistantDrawer() {
               <div>
                 <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
                 <span style={{ fontSize: "0.7rem", color: "var(--accent-lime)" }}>
-                  Gemini 2.5 Active
+                  Gemini 3.1 Flash-Lite Active
                 </span>
               </div>
             </div>
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="icon-button"
-              style={{ width: "28px", height: "28px" }}
-            >
-              <X size={14} />
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <button
+                onClick={handleClearHistory}
+                title="Clear chat history"
+                className="icon-button"
+                style={{ width: "28px", height: "28px", color: "var(--text-muted)" }}
+              >
+                <Trash2 size={13} />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="icon-button"
+                style={{ width: "28px", height: "28px" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Messages Body */}
@@ -192,6 +278,7 @@ export function AIAssistantDrawer() {
                 </span>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick suggestions */}

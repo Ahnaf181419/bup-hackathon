@@ -65,7 +65,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="filter-pill-select">
-            <span>LLM: Gemini 2.5 Active</span>
+            <span>LLM: Gemini 3.1 Flash-Lite Active</span>
             <Sparkles size={13} color="var(--accent-lime)" />
           </div>
         </div>

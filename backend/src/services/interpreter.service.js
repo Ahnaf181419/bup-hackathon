@@ -67,7 +67,7 @@ export async function interpretOperatorNotes(notes = [], hours = [], battery = {
       const promptText = `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}\n\nActual Operator Notes to interpret:\n${JSON.stringify(notes, null, 2)}`;
       
       const apiPromise = ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
         contents: promptText,
       });
 

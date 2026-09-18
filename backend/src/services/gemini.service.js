@@ -16,8 +16,9 @@ or GridWise, say so briefly.`;
 
 export async function generateContent(prompt, options = {}) {
   const contents = buildPrompt(prompt, options);
+  const model = options.model || env.GEMINI_MODEL;
   const response = await gemini.models.generateContent({
-    model: options.model || env.GEMINI_MODEL,
+    model,
     contents,
     config: {
       systemInstruction: ASSISTANT_INSTRUCTION,

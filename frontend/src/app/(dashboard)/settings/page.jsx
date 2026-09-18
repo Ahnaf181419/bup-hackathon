@@ -102,7 +102,7 @@ export default function SettingsPage() {
                 type="text"
                 className="form-input"
                 disabled
-                value={`${LLM_MODEL_LABEL} via @google/genai`}
+value={`${LLM_MODEL_LABEL} via @google/genai`}
               />
             </div>
 

@@ -40,3 +40,8 @@ coverage/
 *.tgz
 .tmp/
 .vercel/
+
+# Agent/tooling artifacts
+.opencode/
+.playwright-mcp/
+cursor-*.png

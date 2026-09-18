@@ -3,6 +3,7 @@
  * Product UI (Operate mode): neutrals carry the layout, lime marks actions, selection and success only.
  * Data colours are fixed per quantity (solar, grid, battery) and reused by every chart and table.
  */
+@import "../styles/motion.css";
 
 :root {
   /* Surfaces (dark control-room ramp) */
@@ -97,8 +98,9 @@
   --z-modal: 70;
   --z-toast: 80;
 
-  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-ui), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-data), ui-monospace, monospace;
+  --font-family-display: var(--font-display), var(--font-ui), sans-serif;
 
   --nav-bottom-height: 0px;
 }
@@ -272,9 +274,10 @@ button {
 }
 
 .brand-title {
+  font-family: var(--font-family-display);
   font-size: var(--text-base);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--text-primary);
 }
 
@@ -420,14 +423,14 @@ button {
 }
 
 .page-title {
+  font-family: var(--font-family-display);
   font-size: var(--text-2xl);
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  letter-spacing: 0;
   line-height: 1.2;
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .page-subtitle {

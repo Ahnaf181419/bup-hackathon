@@ -1,106 +1,105 @@
 "use client";
 
 import React from "react";
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { BatteryMedium } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
+  COLORS,
+  SYNC_ID,
+  axisProps,
+  gridProps,
+  hourTicks,
+  lineCursorProps,
+  ChartTooltip,
+  Legend,
+  useChartAnimation,
+  directiveSeries,
+} from "./chartTheme";
 
-export function BatteryStateChart({ plan, batteryConfig = {} }) {
+/** Stored energy at the end of each hour, with every limit the plan had to respect drawn on the chart. */
+export function BatteryStateChart({ plan, batteryConfig = {}, directives = [] }) {
+  const anim = useChartAnimation();
   if (!plan || plan.length === 0) return null;
 
-  const capacity = batteryConfig.capacity_kwh || 1000;
-  const minimum = batteryConfig.minimum_energy_kwh || 150;
-  const initial = batteryConfig.initial_energy_kwh || 400;
+  const capacity = batteryConfig.capacity_kwh ?? null;
+  const minimum = batteryConfig.minimum_energy_kwh ?? null;
+  const initial = batteryConfig.initial_energy_kwh ?? null;
+  const reserve = directiveSeries(directives, "minimum_battery_reserve", "minimum_energy_kwh", Math.max);
+  const hasReserve = reserve.some((v) => v !== null);
 
   const data = plan.map((p) => ({
-    hour: `${String(p.hour).padStart(2, "0")}:00`,
+    h: String(p.hour).padStart(2, "0"),
     energy: p.battery_energy_after_kwh,
     action: p.battery_action,
+    flow: p.battery_kwh,
+    reserve: reserve[p.hour],
   }));
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const point = payload[0];
-      return (
-        <div
-          style={{
-            background: "#0c1219",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "var(--radius-sm)",
-            padding: "10px 14px",
-            boxShadow: "var(--shadow-lg)",
-            fontSize: "0.8rem",
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: "4px", color: "var(--text-primary)" }}>
-            Hour {label}
-          </div>
-          <div style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>
-            Energy Level: {point.value?.toFixed(1)} kWh
-          </div>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>
-            Action: {point.payload.action.toUpperCase()}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
+  const legend = [
+    { label: "Stored energy", color: COLORS.battery },
+    ...(capacity !== null ? [{ label: `Capacity ${capacity} kWh`, color: COLORS.axis, dashed: true }] : []),
+    ...(minimum !== null ? [{ label: `Minimum ${minimum} kWh`, color: COLORS.limit, dashed: true }] : []),
+    ...(hasReserve ? [{ label: "Reserve from notes", color: COLORS.reserve, dashed: true }] : []),
+  ];
 
   return (
-    <div
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-xl)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-      }}
-    >
-      <div className="pane-header-row">
+    <section className="card" aria-labelledby="battery-chart-title">
+      <div className="card-header">
         <div>
-          <h3 className="pane-title">Battery Storage State of Charge (SoC) Trajectory</h3>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Track battery reservoir over 24 hours respecting reserve floor and end-of-day neutrality
+          <h2 id="battery-chart-title" className="card-title">
+            <BatteryMedium size={18} strokeWidth={1.75} aria-hidden="true" />
+            Battery energy
+          </h2>
+          <p className="card-desc">
+            At the end of each hour.{initial !== null ? ` Starts and must finish at ${initial} kWh.` : ""}
           </p>
         </div>
-        <div style={{ display: "flex", gap: "12px", fontSize: "0.75rem" }}>
-          <span style={{ color: "var(--accent-amber)" }}>-- Min Reserve ({minimum} kWh)</span>
-          <span style={{ color: "var(--accent-lime)" }}>-- Initial Target ({initial} kWh)</span>
-        </div>
+        <Legend items={legend} />
       </div>
 
-      <div style={{ width: "100%", height: 300 }}>
+      <div style={{ width: "100%", height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis dataKey="hour" stroke="#64748b" fontSize={11} />
-            <YAxis stroke="#64748b" fontSize={11} domain={[0, Math.ceil(capacity * 1.1)]} />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine y={capacity} stroke="#64748b" strokeDasharray="4 4" label={{ value: "Max Cap", fill: "#64748b", fontSize: 10 }} />
-            <ReferenceLine y={minimum} stroke="#fbbf24" strokeDasharray="4 4" label={{ value: "Min Reserve", fill: "#fbbf24", fontSize: 10 }} />
-            <ReferenceLine y={initial} stroke="#a3e635" strokeDasharray="3 3" label={{ value: "Neutral Target", fill: "#a3e635", fontSize: 10 }} />
-            <Line
-              type="monotone"
-              dataKey="energy"
-              name="Battery Energy"
-              stroke="#38bdf8"
-              strokeWidth={3}
-              dot={{ r: 3, fill: "#38bdf8" }}
-              activeDot={{ r: 6, fill: "#a3e635" }}
+          <ComposedChart data={data} syncId={SYNC_ID} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+            <defs>
+              <linearGradient id="batteryFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLORS.battery} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={COLORS.battery} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="h" {...axisProps} ticks={hourTicks} />
+            <YAxis {...axisProps} width={48} domain={[0, capacity !== null ? Math.ceil(capacity * 1.05) : "auto"]} />
+            <Tooltip
+              cursor={lineCursorProps}
+              content={
+                <ChartTooltip
+                  rows={(d) => [
+                    { label: "Stored energy", value: `${d.energy.toFixed(1)} kWh`, color: COLORS.battery },
+                    { label: "Action", value: d.action === "idle" ? "Idle" : `${d.action === "charge" ? "Charge" : "Discharge"} ${d.flow.toFixed(1)} kWh` },
+                    ...(d.reserve !== null ? [{ label: "Reserve required", value: `${d.reserve} kWh`, color: COLORS.reserve }] : []),
+                  ]}
+                />
+              }
             />
-          </LineChart>
+            {capacity !== null && <ReferenceLine y={capacity} stroke={COLORS.axis} strokeDasharray="4 4" />}
+            {minimum !== null && minimum > 0 && <ReferenceLine y={minimum} stroke={COLORS.limit} strokeDasharray="4 4" />}
+            {initial !== null && <ReferenceLine y={initial} stroke="rgba(226,232,240,0.35)" strokeDasharray="2 4" />}
+            <Area dataKey="energy" type="linear" stroke={COLORS.battery} strokeWidth={2} fill="url(#batteryFill)" dot={false} activeDot={{ r: 4 }} {...anim} />
+            {hasReserve && (
+              <Line
+                dataKey="reserve"
+                type="linear"
+                stroke={COLORS.reserve}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={{ r: 2.5, fill: COLORS.reserve, strokeWidth: 0 }}
+                connectNulls={false}
+                {...anim}
+              />
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </section>
   );
 }

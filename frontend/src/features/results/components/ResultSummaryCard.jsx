@@ -1,152 +1,120 @@
 "use client";
 
 import React from "react";
-import { Coins, Zap, Activity, Clock, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Coins, Zap, Activity, Timer, ShieldCheck, BookOpen } from "lucide-react";
 import { MetricCard } from "@/features/shared/components/MetricCard";
+import { formatBdt, formatKwh, formatHour, durationParts } from "@/features/shared/lib/format";
 
-export function ResultSummaryCard({ result }) {
+export function ResultSummaryCard({ result, isReference }) {
   if (!result) return null;
 
-  const cost = typeof result.total_cost_bdt === "number"
-    ? result.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "—";
-  const grid = typeof result.total_grid_kwh === "number" ? result.total_grid_kwh.toFixed(1) : "—";
-  const peak = typeof result.peak_grid_kwh === "number" ? result.peak_grid_kwh.toFixed(1) : "—";
-  const runtime = typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? `${result.processingTimeMs} ms` : "—";
-
-  const isOptimal = (result.status || "optimal").toLowerCase() === "optimal";
   const stats = computeStats(result);
-  const summaryPoints = (result.plan_summary || "24-hour campus energy schedule successfully solved.")
+  const ms = !isReference && typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? result.processingTimeMs : null;
+  const time = durationParts(ms);
+  const summaryPoints = (result.plan_summary || "")
     .split(/(?<=\.)\s+(?=[A-Z])/)
+    .map((s) => s.trim())
     .filter(Boolean);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {/* Top Banner with Scenario & Neutrality Badge */}
-      <div
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-lg)",
-          padding: "16px 22px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", flex: "1 1 520px" }}>
-          <div
-            style={{
-              flexShrink: 0,
-              width: "36px",
-              height: "36px",
-              borderRadius: "var(--radius-pill)",
-              background: "linear-gradient(135deg, #a3e635 0%, #34d399 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#070e02",
-            }}
-          >
-            <CheckCircle2 size={20} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: "1.15rem", fontWeight: 800 }}>
-              Optimization Result: {result.scenario_id}
-            </h3>
-            <ul style={{ margin: "6px 0 0", paddingLeft: "18px", fontSize: "0.82rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "3px" }}>
-              {summaryPoints.map((point, i) => (
-                <li key={i}>{point}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span className={`badge ${isOptimal ? "badge-lime" : "badge-amber"}`}>
-            ● {result.status ? result.status.toUpperCase() : "OPTIMAL DISPATCH"}
-          </span>
-          <span className="badge badge-cyan" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <ShieldCheck size={13} />
-            <span>SoC Neutrality: Verified (±0.01 kWh)</span>
-          </span>
-        </div>
-      </div>
-
-      {/* 4 KPI Cards matching the reference screenshot top row */}
+    <div className="stack">
       <div className="kpi-cards-grid">
         <MetricCard
-          label="Total Campus Electricity Cost"
-          value={cost}
+          label="Total cost"
+          value={formatBdt(result.total_cost_bdt)}
           unit="BDT"
           icon={Coins}
-          variant="lime"
-          isHighlight={true}
-          subtext={stats.savingsPct !== null ? `Saves ${stats.savingsPct.toFixed(1)}% vs. no battery` : "Minimum grid cost"}
-          badgeText="Minimized"
-          progressPercent={stats.savingsPct ?? 0}
+          isHighlight
+          subtext={
+            stats.savingsPct !== null ? (
+              <>
+                <span className="positive">{stats.savingsPct.toFixed(1)}% less</span> than the same day without the battery
+              </>
+            ) : (
+              "Sum of grid import × tariff"
+            )
+          }
         />
         <MetricCard
-          label="Total Grid Import"
-          value={grid}
+          label="Grid import"
+          value={formatKwh(result.total_grid_kwh)}
           unit="kWh"
           icon={Zap}
-          variant="cyan"
-          subtext={stats.gridSharePct !== null ? `${stats.gridSharePct.toFixed(0)}% of daily demand` : "Utility grid import"}
-          badgeText="Demand met"
-          progressPercent={stats.gridSharePct ?? 0}
+          subtext={stats.gridSharePct !== null ? `${stats.gridSharePct.toFixed(0)}% of the day's demand` : "Total over 24 hours"}
         />
         <MetricCard
-          label="Peak Grid Demand Draw"
-          value={peak}
+          label="Peak hour draw"
+          value={formatKwh(result.peak_grid_kwh)}
           unit="kWh"
           icon={Activity}
-          variant="amber"
-          subtext={stats.peakHour !== null ? `Highest hour: ${String(stats.peakHour).padStart(2, "0")}:00` : "Highest single-hour draw"}
-          badgeText={stats.hasGridCap ? "Grid cap applied" : "No grid cap"}
-          progressPercent={stats.peakVsDemandPct ?? 0}
+          subtext={
+            stats.peakHour !== null
+              ? `At ${formatHour(stats.peakHour)}${stats.hasGridCap ? " · grid cap applied" : ""}`
+              : "Highest single-hour import"
+          }
         />
         <MetricCard
-          label="Pipeline Runtime"
-          value={runtime}
-          unit=""
-          icon={Clock}
-          variant="emerald"
-          subtext="LLM + guardrails + LP solver"
-          badgeText={typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? (result.processingTimeMs <= 5000 ? "Within 5 s target" : "Over 5 s target") : "Reference"}
-          progressPercent={typeof result.processingTimeMs === "number" ? Math.min(100, (result.processingTimeMs / 5000) * 100) : 0}
+          label="Pipeline time"
+          value={time ? time[0] : "—"}
+          unit={time ? time[1] : undefined}
+          icon={Timer}
+          subtext={ms === null ? (isReference ? "Not timed: reference answer" : "Not recorded") : ms <= 5000 ? "Within the 5 s target" : "Over the 5 s target"}
         />
       </div>
+
+      <section className="card" aria-labelledby="summary-title">
+        <div className="card-header">
+          <h2 id="summary-title" className="card-title">Plan summary</h2>
+          {isReference ? (
+            <span className="badge badge-outline">
+              <BookOpen size={12} aria-hidden="true" /> Reference answer, not a GridWise run
+            </span>
+          ) : (
+            <span className="badge badge-lime" title="The backend replays every hour before returning a plan">
+              <ShieldCheck size={12} aria-hidden="true" /> Replay-verified: balance, battery limits, directives, end-of-day energy
+            </span>
+          )}
+        </div>
+        {summaryPoints.length > 0 ? (
+          <ul className="summary-list">
+            {summaryPoints.map((point, i) => (
+              <li key={i}>{point}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted" style={{ fontSize: "var(--text-sm)" }}>No summary was returned for this run.</p>
+        )}
+      </section>
     </div>
   );
 }
 
-/** Real figures for the KPI bars, derived from the scenario input and the returned plan. */
+/** Figures derived from the scenario input and the returned plan (no placeholders). */
 function computeStats(result) {
   const hours = result.scenario_input?.hours;
   const plan = result.hourly_plan;
-  if (!Array.isArray(hours) || hours.length !== 24 || !Array.isArray(plan) || plan.length !== 24) {
-    return { savingsPct: null, gridSharePct: null, peakHour: null, peakVsDemandPct: null, hasGridCap: false };
-  }
+  const empty = { savingsPct: null, gridSharePct: null, peakHour: null, hasGridCap: false };
+  if (!Array.isArray(plan) || plan.length !== 24) return empty;
+
+  const peakEntry = plan.reduce((best, p) => (p.grid_kwh > best.grid_kwh ? p : best), plan[0]);
+  const hasGridCap = (result.directive_interpretation || []).some((d) => d.directive_type === "max_grid_window" && d.applies);
+  if (!Array.isArray(hours) || hours.length !== 24) return { ...empty, peakHour: peakEntry?.hour ?? null, hasGridCap };
+
   const factor = Array(24).fill(1);
   for (const d of result.directive_interpretation || []) {
-    if (d.directive_type === "solar_reduction" && d.structured_adjustment) {
+    if (d.directive_type === "solar_reduction" && d.applies && d.structured_adjustment) {
       for (const h of d.structured_adjustment.hours || []) factor[h] = Math.min(factor[h], d.structured_adjustment.factor);
     }
   }
   const byHour = [...hours].sort((a, b) => a.hour - b.hour);
+  // Same day with no battery: every hour imports whatever usable solar doesn't cover.
   const baseline = byHour.reduce((sum, h, i) => sum + Math.max(0, h.demand_kwh - h.solar_kwh * factor[i]) * h.tariff_bdt_per_kwh, 0);
   const demand = byHour.reduce((sum, h) => sum + h.demand_kwh, 0);
-  const maxDemand = Math.max(...byHour.map((h) => h.demand_kwh));
-  const peakEntry = plan.reduce((best, p) => (p.grid_kwh > best.grid_kwh ? p : best), plan[0]);
 
   return {
     savingsPct: baseline > 0 ? Math.max(0, (1 - result.total_cost_bdt / baseline) * 100) : null,
     gridSharePct: demand > 0 ? Math.min(100, (result.total_grid_kwh / demand) * 100) : null,
     peakHour: peakEntry?.hour ?? null,
-    peakVsDemandPct: maxDemand > 0 ? Math.min(100, (result.peak_grid_kwh / maxDemand) * 100) : null,
-    hasGridCap: (result.directive_interpretation || []).some((d) => d.directive_type === "max_grid_window" && d.applies),
+    hasGridCap,
   };
 }

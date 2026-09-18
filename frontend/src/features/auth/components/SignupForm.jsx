@@ -51,7 +51,7 @@ export function SignupForm() {
         border: "1px solid var(--border-medium)",
         borderRadius: "var(--radius-xl)",
         padding: "36px 32px",
-        boxShadow: "var(--shadow-lg)",
+        boxShadow: "var(--shadow-overlay)",
         position: "relative",
       }}
     >
@@ -64,15 +64,14 @@ export function SignupForm() {
             width: "48px",
             height: "48px",
             borderRadius: "var(--radius-pill)",
-            background: "linear-gradient(135deg, #a3e635 0%, #4ade80 100%)",
+            background: "var(--accent-lime)",
             color: "#070e02",
-            boxShadow: "var(--shadow-glow)",
             marginBottom: "14px",
           }}
         >
           <Zap size={26} />
         </div>
-        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, letterSpacing: "-0.03em" }}>
+        <h1 style={{ fontSize: "1.6rem", fontWeight: 700, letterSpacing: "-0.025em" }}>
           Create GridWise Account
         </h1>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "6px" }}>

@@ -1,160 +1,164 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Sparkles, ShieldCheck, Cpu, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Sparkles, ShieldCheck, Calculator, ScanSearch, Check, X, ArrowRight } from "lucide-react";
+import { formatBdt, formatKwh, formatDuration } from "@/features/shared/lib/format";
 
-export function OptimizationProgressModal({ isOpen, currentStep = 1 }) {
-  if (!isOpen) return null;
+const STAGES = [
+  { key: "interpret", title: "Interpret notes", icon: Sparkles, pending: "LLM reads each note into a structured directive" },
+  { key: "guard", title: "Guardrails", icon: ShieldCheck, pending: "Checks types, hours and values; never invents numbers" },
+  { key: "solve", title: "LP solver", icon: Calculator, pending: "Finds the least-cost 24-hour plan" },
+  { key: "verify", title: "Replay check", icon: ScanSearch, pending: "Re-checks every hour against every rule" },
+];
 
-  const steps = [
-    {
-      id: 1,
-      title: "LLM Directive Interpretation",
-      desc: "Gemini parsing natural-language operator notes into structured directive JSON",
-      icon: Sparkles,
-      color: "var(--accent-lime)",
-    },
-    {
-      id: 2,
-      title: "Deterministic Guardrail Validation",
-      desc: "Enforcing time windows, rate bounds, and filtering no-op distractors",
-      icon: ShieldCheck,
-      color: "var(--accent-cyan)",
-    },
-    {
-      id: 3,
-      title: "Linear Programming Dispatch Solver",
-      desc: "Simplex algorithm minimizing total campus energy cost across 24 hours",
-      icon: Cpu,
-      color: "var(--accent-amber)",
-    },
-    {
-      id: 4,
-      title: "Neutrality & Physics Verification",
-      desc: "Validating hourly balance and 24h battery SoC neutrality (±0.01 tolerance)",
-      icon: CheckCircle2,
-      color: "var(--accent-emerald)",
-    },
-  ];
+/** Describe each stage from the actual response. Nothing here is simulated. */
+function describe(result, noteCount) {
+  const directives = result.directive_interpretation || [];
+  const applied = directives.filter((d) => d.applies).length;
+  const ignored = directives.length - applied;
+  const meta = result.pipeline;
+  const sources = meta?.interpretation_sources || [];
+  const byLlm = sources.filter((s) => s === "llm").length;
+  const byBackup = sources.filter((s) => s === "fallback").length;
+
+  let interpret;
+  if (!meta) interpret = <>{noteCount} note{noteCount === 1 ? "" : "s"} interpreted.</>;
+  else if (byLlm === sources.length && meta.llm_model)
+    interpret = (
+      <>
+        {byLlm} note{byLlm === 1 ? "" : "s"} read by <strong>{meta.llm_model}</strong>
+        {meta.llm_source === "llm-cache" ? " (cached)" : ""}.
+      </>
+    );
+  else
+    interpret = (
+      <>
+        {byLlm > 0 ? `${byLlm} by the LLM, ` : "LLM unavailable; "}
+        <strong>{byBackup}</strong> by the backup parser.
+      </>
+    );
+
+  return {
+    interpret,
+    guard: (
+      <>
+        <strong>{applied}</strong> constraint{applied === 1 ? "" : "s"} applied
+        {ignored > 0 ? `, ${ignored} note${ignored === 1 ? "" : "s"} with no effect on today's dispatch` : ""}.
+      </>
+    ),
+    solve: (
+      <>
+        <strong>{formatBdt(result.total_cost_bdt)} BDT</strong> · {formatKwh(result.total_grid_kwh)} kWh from grid · peak{" "}
+        {formatKwh(result.peak_grid_kwh)} kWh.
+      </>
+    ),
+    verify: <>Passed: energy balance, battery limits, every directive, end-of-day energy.</>,
+  };
+}
+
+export function OptimizationProgressModal({ run, notes = [], onClose, onOpenResult }) {
+  const [now, setNow] = useState(() => Date.now());
+  const primaryRef = useRef(null);
+  const status = run?.status;
+
+  useEffect(() => {
+    if (status !== "running") return undefined;
+    const t = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(t);
+  }, [status]);
+
+  useEffect(() => {
+    if (status === "done" || status === "error") primaryRef.current?.focus();
+    if (!status || status === "running") return undefined;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [status, onClose]);
+
+  if (!run) return null;
+
+  const details = status === "done" ? describe(run.result, notes.length) : null;
+  const elapsed = status === "running" ? Math.max(0, now - run.startedAt) : run.elapsedMs;
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
-      <div className="modal-content" style={{ maxWidth: "520px" }}>
-        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div
-            style={{
-              width: "48px",
-              height: "48px",
-              borderRadius: "var(--radius-pill)",
-              background: "linear-gradient(135deg, #a3e635 0%, #4ade80 100%)",
-              color: "#070e02",
-              margin: "0 auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "var(--shadow-glow)",
-            }}
-          >
-            <Cpu size={24} />
+    <div className="modal-overlay">
+      <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="run-title" aria-describedby="run-status">
+        <div className="row-between" style={{ alignItems: "flex-start" }}>
+          <div>
+            <h2 id="run-title" style={{ fontSize: "var(--text-xl)" }}>
+              {status === "running" ? "Optimizing…" : status === "done" ? "Plan ready" : "Run failed"}
+            </h2>
+            <p id="run-status" className="secondary" style={{ fontSize: "var(--text-sm)", marginTop: 2 }} aria-live="polite">
+              {status === "running" && <span className="tabular">{(elapsed / 1000).toFixed(1)} s · usually 2–8 s, mostly the LLM call</span>}
+              {status === "done" && (
+                <span className="tabular">
+                  {run.result.scenario_id} solved in {formatDuration(elapsed)}
+                  {typeof run.result.processingTimeMs === "number" ? ` (server ${formatDuration(run.result.processingTimeMs)})` : ""}
+                </span>
+              )}
+              {status === "error" && "Nothing was saved. Fix the input or try again."}
+            </p>
           </div>
-          <h3 style={{ fontSize: "1.35rem", fontWeight: 800 }}>
-            GridWise Optimization Pipeline
-          </h3>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            Computing optimal 24-hour campus energy schedule
-          </p>
+          {status !== "running" && (
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        {/* Steps sequence */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px", margin: "10px 0" }}>
-          {steps.map((step) => {
-            const Icon = step.icon;
-            const isCompleted = currentStep > step.id;
-            const isCurrent = currentStep === step.id;
+        {status === "running" && (
+          <div className="progress-track" aria-hidden="true">
+            <span />
+          </div>
+        )}
 
-            return (
-              <div
-                key={step.id}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "14px",
-                  padding: "12px 14px",
-                  borderRadius: "var(--radius-md)",
-                  background: isCurrent
-                    ? "rgba(163, 230, 53, 0.08)"
-                    : isCompleted
-                    ? "rgba(255, 255, 255, 0.03)"
-                    : "transparent",
-                  border: isCurrent
-                    ? "1px solid rgba(163, 230, 53, 0.3)"
-                    : "1px solid transparent",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <div
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "var(--radius-pill)",
-                    background: isCompleted
-                      ? "var(--accent-lime)"
-                      : isCurrent
-                      ? step.color
-                      : "rgba(255, 255, 255, 0.08)",
-                    color: isCompleted || isCurrent ? "#070e02" : "var(--text-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+        {status === "error" ? (
+          <div className="alert alert-error" role="alert">
+            <X size={16} />
+            <span>{run.message}</span>
+          </div>
+        ) : (
+          <ol className="pipeline-steps">
+            {STAGES.map((stage, i) => {
+              const Icon = stage.icon;
+              const done = status === "done";
+              return (
+                <li
+                  key={stage.key}
+                  className={`pipeline-step ${done ? "done" : "running"}`}
+                  style={{ "--step-delay": `${i * 110}ms` }}
                 >
-                  {isCompleted ? <CheckCircle2 size={18} /> : <Icon size={16} />}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span
-                      style={{
-                        fontSize: "0.9rem",
-                        fontWeight: 700,
-                        color: isCurrent
-                          ? "var(--text-primary)"
-                          : isCompleted
-                          ? "var(--accent-lime)"
-                          : "var(--text-muted)",
-                      }}
-                    >
-                      {step.title}
-                    </span>
-                    {isCurrent && (
-                      <div className="spinner" style={{ width: "14px", height: "14px" }} />
-                    )}
+                  <span className="step-icon" aria-hidden="true">
+                    {done ? <Check size={15} strokeWidth={2.5} /> : <Icon size={14} strokeWidth={1.75} />}
+                  </span>
+                  <div>
+                    <div className="step-title">{stage.title}</div>
+                    <div className="step-detail">{done ? details[stage.key] : stage.pending}</div>
                   </div>
-                  <p
-                    style={{
-                      fontSize: "0.775rem",
-                      color: "var(--text-secondary)",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {step.desc}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
 
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: "0.75rem",
-            color: "var(--text-muted)",
-          }}
-        >
-          Strictly maintaining BUP CSE Fest 2026 Problem Statement specifications
-        </div>
+        {status !== "running" && (
+          <div className="row" style={{ justifyContent: "flex-end", gap: 8 }}>
+            {status === "done" ? (
+              <>
+                <button type="button" className="btn-secondary" onClick={onClose}>
+                  Keep editing
+                </button>
+                <button type="button" ref={primaryRef} className="btn-primary" onClick={onOpenResult}>
+                  Open schedule <ArrowRight size={16} />
+                </button>
+              </>
+            ) : (
+              <button type="button" ref={primaryRef} className="btn-secondary" onClick={onClose}>
+                Back to the form
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

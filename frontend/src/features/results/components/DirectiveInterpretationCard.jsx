@@ -1,209 +1,107 @@
 "use client";
 
 import React from "react";
-import { Sparkles, CheckCircle, XCircle, Clock, FileCode2, MessageSquareQuote } from "lucide-react";
-import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
+import { Sparkles, Clock } from "lucide-react";
+import { hourRanges } from "@/features/shared/lib/format";
 
-export function DirectiveInterpretationCard({ interpretations, notes = [], sources = [] }) {
-  if (!interpretations || interpretations.length === 0) {
-    return null;
+const TYPE_LABELS = {
+  solar_reduction: "Solar reduction",
+  minimum_battery_reserve: "Battery reserve",
+  no_charge_window: "No charging",
+  no_discharge_window: "No discharging",
+  max_grid_window: "Grid cap",
+  no_op: "No effect",
+};
+
+const SOURCE_LABELS = {
+  llm: { text: "LLM", cls: "badge-purple" },
+  fallback: { text: "Backup parser", cls: "badge-amber" },
+  "guardrail-no-op": { text: "Guardrail: ignored", cls: "badge-gray" },
+};
+
+function constraintText(item) {
+  const adj = item.structured_adjustment;
+  if (!item.applies || !adj) return null;
+  switch (item.directive_type) {
+    case "solar_reduction":
+      return `Usable solar ${Math.round(adj.factor * 1000) / 10}% of forecast (factor ${adj.factor})`;
+    case "minimum_battery_reserve":
+      return `Battery ≥ ${adj.minimum_energy_kwh} kWh`;
+    case "no_charge_window":
+      return "Battery may not charge";
+    case "no_discharge_window":
+      return "Battery may not discharge";
+    case "max_grid_window":
+      return `Grid import ≤ ${adj.max_grid_kwh} kWh per hour`;
+    default:
+      return null;
   }
+}
 
-  const getDirectiveBadgeColor = (type) => {
-    switch (type) {
-      case "solar_reduction":
-        return "badge-amber";
-      case "minimum_battery_reserve":
-        return "badge-cyan";
-      case "no_charge_window":
-      case "no_discharge_window":
-        return "badge-rose";
-      case "max_grid_window":
-        return "badge-purple";
-      case "no_op":
-        return "badge-gray";
-      default:
-        return "badge-lime";
-    }
-  };
+/** Each operator note next to what the pipeline made of it. */
+export function DirectiveInterpretationCard({ interpretations, notes = [], sources = [], model }) {
+  if (!interpretations || interpretations.length === 0) return null;
+
+  const applied = interpretations.filter((i) => i.applies).length;
 
   return (
-    <div
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-xl)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "18px",
-      }}
-    >
-      <div className="pane-header-row">
-        <div className="pane-title-group">
-          <Sparkles size={20} color="var(--accent-lime)" />
-          <h3 className="pane-title">LLM Directive Interpretation Audit</h3>
+    <section className="card" aria-labelledby="directives-title">
+      <div className="card-header">
+        <div>
+          <h2 id="directives-title" className="card-title">
+            <Sparkles size={18} strokeWidth={1.75} aria-hidden="true" />
+            Note interpretation
+          </h2>
+          <p className="card-desc">
+            {model ? `Read by ${model}, ` : "Read by the LLM, "}checked by deterministic guardrails, then applied as
+            constraints. {applied} of {interpretations.length} notes changed the plan.
+          </p>
         </div>
-        <span className="badge badge-lime">
-          {interpretations.filter((i) => i.applies).length} of {interpretations.length} Active Directives
-        </span>
       </div>
 
-      <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        LLM ({LLM_MODEL_LABEL}) interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
-      </p>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      <ol className="directive-list">
         {interpretations.map((item, idx) => {
           const adj = item.structured_adjustment;
-          const hours = adj?.hours || adj?.window || []; // `window` only in results cached before the schema fix
+          const hours = adj?.hours || adj?.window || []; // `window`: results cached before the schema fix
+          const constraint = constraintText(item);
+          const source = SOURCE_LABELS[sources[idx]];
+          const n = item.note_index !== undefined ? item.note_index : idx;
 
           return (
-            <div
-              key={idx}
-              style={{
-                background: "var(--bg-card-secondary)",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-lg)",
-                padding: "18px 20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
-              {/* Top Row: Note Index & Badges */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "var(--radius-pill)",
-                      background: "rgba(255, 255, 255, 0.08)",
-                      fontSize: "0.75rem",
-                      fontWeight: 800,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    #{item.note_index !== undefined ? item.note_index + 1 : idx + 1}
-                  </span>
-                  <span className={`badge ${getDirectiveBadgeColor(item.directive_type)}`}>
-                    {item.directive_type}
-                  </span>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {sources[idx] && (
-                    <span className={`badge ${sources[idx] === "llm" ? "badge-purple" : "badge-amber"}`} title="Which interpreter produced this directive">
-                      {sources[idx] === "llm" ? "LLM" : sources[idx] === "fallback" ? "Backup parser" : "Guardrail no-op"}
-                    </span>
-                  )}
-                  {item.applies ? (
-                    <span className="badge badge-lime" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <CheckCircle size={12} />
-                      <span>Applies</span>
-                    </span>
-                  ) : (
-                    <span className="badge badge-gray" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <XCircle size={12} />
-                      <span>No-Op (Distractor)</span>
-                    </span>
-                  )}
-                </div>
+            <li key={idx} className={`directive-item ${item.applies ? "" : "inactive"}`}>
+              <div className="directive-note">
+                <span className="directive-index">Note {n + 1}</span>
+                {notes[n] ? <q>{notes[n]}</q> : <span className="muted">Original text not stored for this run.</span>}
               </div>
 
-              {/* Original operator note */}
-              {notes[idx] && (
-                <blockquote
-                  style={{
-                    margin: 0,
-                    padding: "8px 12px",
-                    borderLeft: "3px solid var(--border-subtle)",
-                    color: "var(--text-secondary)",
-                    fontSize: "0.82rem",
-                    fontStyle: "italic",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  &ldquo;{notes[idx]}&rdquo;
-                </blockquote>
-              )}
-
-              {/* Explanation / Interpretation text */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                <MessageSquareQuote size={16} color="var(--accent-lime)" style={{ flexShrink: 0, marginTop: "2px" }} />
-                <p style={{ fontSize: "0.85rem", color: "var(--text-primary)", lineHeight: "1.4" }}>
-                  {item.explanation || "No explanation provided."}
-                </p>
-              </div>
-
-              {/* Structured Adjustment Details if applies */}
-              {item.applies && adj && (
-                <div
-                  style={{
-                    background: "#070c12",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: "12px",
-                    fontSize: "0.8rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Clock size={14} color="var(--text-muted)" />
-                    <span style={{ color: "var(--text-secondary)" }}>Active Hours:</span>
-                    {hours.length > 0 ? (
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        {hours.map((h) => (
-                          <span
-                            key={h}
-                            style={{
-                              padding: "2px 6px",
-                              borderRadius: "var(--radius-xs)",
-                              background: "rgba(163, 230, 53, 0.15)",
-                              color: "var(--accent-lime)",
-                              fontWeight: 700,
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            {String(h).padStart(2, "0")}:00
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>All 24 hours</span>
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    {adj.factor !== undefined && (
-                      <span>
-                        Usable solar: <strong style={{ color: "var(--accent-amber)" }}>{Math.round(adj.factor * 1000) / 10}%</strong> (factor {adj.factor})
-                      </span>
-                    )}
-                    {adj.minimum_energy_kwh !== undefined && (
-                      <span>
-                        Reserve Floor: <strong style={{ color: "var(--accent-cyan)" }}>{adj.minimum_energy_kwh} kWh</strong>
-                      </span>
-                    )}
-                    {adj.max_grid_kwh !== undefined && (
-                      <span>
-                        Max Grid: <strong style={{ color: "var(--accent-rose)" }}>{adj.max_grid_kwh} kWh</strong>
-                      </span>
-                    )}
-                  </div>
+              <div className="directive-result">
+                <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                  <span className={`badge ${item.applies ? "badge-lime" : "badge-gray"}`}>
+                    {TYPE_LABELS[item.directive_type] || item.directive_type}
+                  </span>
+                  <code className="directive-type">{item.directive_type}</code>
+                  {source && <span className={`badge ${source.cls}`}>{source.text}</span>}
                 </div>
-              )}
-            </div>
+
+                {constraint && <p className="directive-constraint">{constraint}</p>}
+
+                {item.applies && hours.length > 0 && (
+                  <p className="directive-hours">
+                    <Clock size={13} aria-hidden="true" />
+                    {hourRanges(hours).map((r) => (
+                      <span key={r} className="hour-chip tabular">
+                        {r}
+                      </span>
+                    ))}
+                  </p>
+                )}
+
+                {item.explanation && <p className="directive-explanation">{item.explanation}</p>}
+              </div>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ol>
+    </section>
   );
 }

@@ -3,36 +3,32 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Zap, LayoutDashboard, Sliders, BarChart3, LogOut, Radio } from "lucide-react";
+import { Zap, LayoutDashboard, SlidersHorizontal, BarChart3, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+
+const NAV_ITEMS = [
+  { label: "Dashboard", short: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Optimize", short: "Optimize", href: "/optimize", icon: SlidersHorizontal },
+  { label: "Results", short: "Results", href: "/results", icon: BarChart3 },
+  { label: "Settings", short: "Settings", href: "/settings", icon: Settings },
+];
 
 export function Navbar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
 
-  const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "⚡ Optimize Run", href: "/optimize", icon: Zap },
-    { label: "Results & History", href: "/results", icon: BarChart3 },
-    { label: "Settings", href: "/settings", icon: Sliders },
-  ];
-
   return (
-    <header className="top-nav" role="banner">
-      {/* Brand Section */}
-      <div className="brand-section">
-        <div className="brand-logo-icon">
-          <Zap size={20} fill="#070e02" />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span className="brand-title">GridWise</span>
-          <span className="brand-badge">BUP 2026</span>
-        </div>
-      </div>
+    <header className="top-nav">
+      <Link href="/dashboard" className="brand-section" aria-label="GridWise dashboard">
+        <span className="brand-logo-icon" aria-hidden="true">
+          <Zap size={16} strokeWidth={2.25} fill="currentColor" />
+        </span>
+        <span className="brand-title">GridWise</span>
+        <span className="brand-badge">BUP CSE Fest 2026</span>
+      </Link>
 
-      {/* Central Pill Nav Cluster — Inspired by Reference Screenshot */}
-      <nav className="nav-pill-cluster" aria-label="Main Navigation">
-        {navItems.map((item) => {
+      <nav className="nav-pill-cluster" aria-label="Main">
+        {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
@@ -40,53 +36,25 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={`nav-pill-item ${isActive ? "active" : ""}`}
+              aria-current={isActive ? "page" : undefined}
             >
-              <Icon size={16} className="nav-icon" />
-              <span>{item.label}</span>
+              <Icon size={16} strokeWidth={1.75} className="nav-icon" aria-hidden="true" />
+              <span className="nav-full-label">{item.label}</span>
+              <span className="nav-short-label">{item.short}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Utility / User Section */}
       <div className="nav-utils">
-        {/* Status Indicator */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "0.75rem",
-            color: "var(--accent-lime)",
-            background: "rgba(163, 230, 53, 0.1)",
-            border: "1px solid rgba(163, 230, 53, 0.25)",
-            borderRadius: "var(--radius-pill)",
-            padding: "4px 10px",
-            fontWeight: 700,
-          }}
-        >
-          <Radio size={12} className="pulse-icon" />
-          <span>LLM Engine Active</span>
-        </div>
-
-        {/* User Profile Pill */}
-        <div className="user-profile-pill" title={user?.email || "Energy Dispatcher"}>
-          <div className="user-avatar">
+        <div className="user-profile-pill" title={user?.email || "Operator"}>
+          <span className="user-avatar" aria-hidden="true">
             {user?.name ? user.name.charAt(0).toUpperCase() : "O"}
-          </div>
-          <span className="user-name-text">
-            {user?.name || "Operator"}
           </span>
+          <span className="user-name-text">{user?.name || "Operator"}</span>
         </div>
-
-        {/* Sign Out Action */}
-        <button
-          onClick={signOut}
-          className="icon-button"
-          title="Sign Out"
-          aria-label="Sign Out"
-        >
-          <LogOut size={16} />
+        <button onClick={signOut} className="icon-button" title="Sign out" aria-label="Sign out">
+          <LogOut size={15} strokeWidth={1.75} />
         </button>
       </div>
     </header>

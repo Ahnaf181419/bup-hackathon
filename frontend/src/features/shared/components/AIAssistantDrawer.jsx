@@ -60,53 +60,15 @@ export function AIAssistantDrawer() {
     <>
       {/* Floating Trigger Button */}
       {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            position: "fixed",
-            bottom: "28px",
-            right: "28px",
-            zIndex: 90,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 18px",
-            borderRadius: "var(--radius-pill)",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-active)",
-            color: "var(--accent-lime)",
-            boxShadow: "var(--shadow-glow)",
-            cursor: "pointer",
-            fontWeight: 700,
-            fontSize: "0.85rem",
-            transition: "all 0.2s ease",
-          }}
-        >
+        <button onClick={() => setIsOpen(true)} className="ai-fab" aria-label="Open AI dispatch assistant">
           <Sparkles size={16} />
-          <span>AI Dispatch Assistant</span>
+          <span className="ai-fab-label">AI assistant</span>
         </button>
       )}
 
       {/* Floating Assistant Drawer */}
       {isOpen && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "28px",
-            right: "28px",
-            width: "380px",
-            height: "520px",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "var(--radius-xl)",
-            boxShadow: "var(--shadow-lg)",
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 100,
-            overflow: "hidden",
-            animation: "slideIn 0.25s ease",
-          }}
-        >
+        <div className="ai-drawer" role="dialog" aria-label="AI dispatch assistant">
           {/* Header */}
           <div
             style={{
@@ -124,8 +86,8 @@ export function AIAssistantDrawer() {
                   width: "28px",
                   height: "28px",
                   borderRadius: "var(--radius-pill)",
-                  background: "var(--accent-lime)",
-                  color: "#070e02",
+                  background: "var(--accent-lime-subtle)",
+                  color: "var(--accent-lime)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -135,7 +97,7 @@ export function AIAssistantDrawer() {
               </div>
               <div>
                 <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
-                <span style={{ fontSize: "0.7rem", color: "var(--accent-lime)" }}>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                   {LLM_MODEL_LABEL}
                 </span>
               </div>
@@ -144,6 +106,7 @@ export function AIAssistantDrawer() {
             <button
               onClick={() => setIsOpen(false)}
               className="icon-button"
+              aria-label="Close assistant"
               style={{ width: "28px", height: "28px" }}
             >
               <X size={14} />
@@ -175,12 +138,12 @@ export function AIAssistantDrawer() {
                   style={{
                     padding: "10px 14px",
                     borderRadius: "var(--radius-md)",
-                    background: msg.role === "user" ? "var(--accent-lime)" : "var(--bg-card-secondary)",
-                    color: msg.role === "user" ? "#070e02" : "var(--text-primary)",
+                    background: msg.role === "user" ? "var(--bg-pill-hover)" : "var(--bg-card-secondary)",
+                    color: "var(--text-primary)",
                     fontSize: "0.825rem",
                     lineHeight: "1.4",
                     border: msg.role === "user" ? "none" : "1px solid var(--border-subtle)",
-                    fontWeight: msg.role === "user" ? 600 : 400,
+                    fontWeight: 400,
                   }}
                 >
                   {msg.role === "user" ? (

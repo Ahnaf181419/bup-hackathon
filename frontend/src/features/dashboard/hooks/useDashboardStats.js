@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/features/shared/lib/api";
-import { SAMPLE_CASES } from "@/features/shared/lib/sampleCases";
 
+/**
+ * Aggregate stats for the dashboard. Uses the backend when available, otherwise the runs saved in
+ * this browser. Returns null when there is nothing real to show (never placeholder numbers).
+ */
 export function useDashboardStats() {
-  const [stats, setStats] = useState({
-    totalRuns: 10,
-    successRate: 100,
-    avgCost: 1420.5,
-    bestCost: 890.2,
-    avgProcessingTime: 385,
-  });
+  const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -19,40 +16,36 @@ export function useDashboardStats() {
       setIsLoading(true);
       try {
         const res = await api.get("/api/dashboard/stats");
-        if (res && res.stats) {
-          setStats(res.stats);
+        if (res?.stats && res.stats.totalRuns > 0) {
+          setStats({ ...res.stats, source: "server" });
           setIsLoading(false);
           return;
         }
-      } catch (err) {
-        // Fallback: calculate from SAMPLE_CASES + localStorage
+      } catch {
+        // Fall through to local runs.
       }
 
       let runs = [];
-      if (typeof window !== "undefined") {
-        try {
-          runs = JSON.parse(localStorage.getItem("gridwise_history") || "[]");
-        } catch (e) {
-          // ignore
-        }
+      try {
+        runs = JSON.parse(localStorage.getItem("gridwise_history") || "[]");
+      } catch {
+        runs = [];
       }
+      const costs = runs.map((r) => r.total_cost_bdt).filter((c) => typeof c === "number");
+      const times = runs.map((r) => r.processingTimeMs).filter((t) => typeof t === "number" && t > 0);
 
-      const allCosts = [
-        ...runs.map((r) => r.total_cost_bdt).filter((c) => typeof c === "number"),
-        ...SAMPLE_CASES.map((c) => c.expected_output?.total_cost_bdt).filter(Boolean),
-      ];
-
-      if (allCosts.length > 0) {
-        const total = allCosts.reduce((a, b) => a + b, 0);
-        const best = Math.min(...allCosts);
-        setStats({
-          totalRuns: Math.max(10, allCosts.length),
-          successRate: 100,
-          avgCost: total / allCosts.length,
-          bestCost: best,
-          avgProcessingTime: 390,
-        });
-      }
+      setStats(
+        costs.length > 0
+          ? {
+              totalRuns: costs.length,
+              avgCost: costs.reduce((a, b) => a + b, 0) / costs.length,
+              bestCost: Math.min(...costs),
+              avgProcessingTime: times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0,
+              timedRuns: times.length,
+              source: "local",
+            }
+          : null
+      );
       setIsLoading(false);
     }
 

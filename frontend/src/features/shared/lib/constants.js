@@ -26,13 +26,6 @@ export const OPTIMIZATION_STATUS = {
   ERROR: "error",
 };
 
-export const NAV_LINKS = [
-  { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
-  { label: "⚡ Optimize", href: "/optimize", icon: "Zap" },
-  { label: "Results & History", href: "/results", icon: "BarChart3" },
-  { label: "Settings", href: "/settings", icon: "Sliders" },
-];
-
 export const DEFAULT_BATTERY_CONFIG = {
   capacity_kwh: 1000,
   initial_energy_kwh: 400,

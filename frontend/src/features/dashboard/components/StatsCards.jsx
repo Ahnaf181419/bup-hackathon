@@ -1,61 +1,43 @@
 "use client";
 
 import React from "react";
-import { Zap, CheckCircle2, TrendingDown, Clock, ShieldCheck } from "lucide-react";
+import { History, Coins, TrendingDown, Timer } from "lucide-react";
 import { MetricCard } from "@/features/shared/components/MetricCard";
+import { formatBdt, durationParts } from "@/features/shared/lib/format";
 
-export function StatsCards({ stats }) {
-  const totalRuns = stats?.totalRuns || 10;
-  const successRate = stats?.successRate || 100;
-  const avgCost = stats?.avgCost
-    ? Number(stats.avgCost).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "37,797.30";
-  const bestCost = stats?.bestCost
-    ? Number(stats.bestCost).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "33,950.00";
+export function StatsCards({ stats, isLoading }) {
+  const has = Boolean(stats);
+  const dash = isLoading ? "…" : "—";
+  const avgTime = has && stats.timedRuns > 0 ? durationParts(stats.avgProcessingTime) : null;
 
   return (
     <div className="kpi-cards-grid">
       <MetricCard
-        label="Total Optimization Runs"
-        value={totalRuns}
-        unit="runs"
-        icon={Zap}
-        variant="cyan"
-        subtext="24h schedules solved"
-        badgeText="Active"
-        progressPercent={80}
+        label="Runs logged"
+        value={has ? stats.totalRuns : dash}
+        icon={History}
+        subtext={!has ? "No runs yet" : stats.source === "server" ? "Your runs plus the public reference answers" : "Runs saved in this browser"}
       />
       <MetricCard
-        label="Simplex Solvability Rate"
-        value={`${successRate}%`}
-        unit=""
-        icon={CheckCircle2}
-        variant="lime"
-        isHighlight={true}
-        subtext="0 infeasible conflicts"
-        badgeText="Optimal"
-        progressPercent={100}
+        label="Average daily cost"
+        value={has ? formatBdt(stats.avgCost) : dash}
+        unit={has ? "BDT" : undefined}
+        icon={Coins}
+        subtext="Mean total grid cost per scenario"
       />
       <MetricCard
-        label="Average 24h Energy Cost"
-        value={avgCost}
-        unit="BDT"
-        icon={Clock}
-        variant="amber"
-        subtext="Across all campus cases"
-        badgeText="Optimized"
-        progressPercent={65}
-      />
-      <MetricCard
-        label="Best (Lowest) Campus Cost"
-        value={bestCost}
-        unit="BDT"
+        label="Lowest daily cost"
+        value={has ? formatBdt(stats.bestCost) : dash}
+        unit={has ? "BDT" : undefined}
         icon={TrendingDown}
-        variant="emerald"
-        subtext="Maximum solar utilization"
-        badgeText="Record Low"
-        progressPercent={95}
+        subtext="Cheapest plan on record"
+      />
+      <MetricCard
+        label="Average pipeline time"
+        value={avgTime ? avgTime[0] : dash}
+        unit={avgTime ? avgTime[1] : undefined}
+        icon={Timer}
+        subtext={has && stats.timedRuns > 0 ? `Over ${stats.timedRuns} timed run${stats.timedRuns === 1 ? "" : "s"} · target 5 s` : "Run a scenario to measure"}
       />
     </div>
   );

@@ -1,9 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
+import { keyManager } from "./keyManager.service.js";
 import { DIRECTIVE_TYPES } from "./guardrail.service.js";
-
-const ai = env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null;
 
 /*
  * The LLM returns an intermediate format that is easy for a model to get right
@@ -135,6 +134,8 @@ async function callModel(model, prompt, timeoutMs) {
   if (level.thinking) config.thinkingConfig = level.thinking;
 
   try {
+    const ai = keyManager.getClient();
+    if (!ai) throw new Error("No Gemini client available");
     const response = await Promise.race([
       ai.models.generateContent({ model, contents: prompt, config }),
       new Promise((_, reject) => {
@@ -168,7 +169,7 @@ async function interpretWithLLM(notes, battery) {
     const started = Date.now();
     try {
       const list = await callModel(model, prompt, Math.min(env.LLM_TIMEOUT_MS, remaining));
-      logger.info(`[interpreter] ${model} answered in ${Date.now() - started} ms`);
+      logger.info(`[interpreter] ${model} answered in ${Date.now() - started} ms using key [${keyManager.getCurrentKeyPreview()}]`);
       return { entries: list, model };
     } catch (err) {
       lastError = err;
@@ -182,7 +183,14 @@ async function interpretWithLLM(notes, battery) {
           continue;
         }
         modelIdx++;
-      } else if (status === 429 || status === 404 || status === 403 || err.timeout) {
+      } else if (status === 429 || status === 403) {
+        // Rate limit / Quota: rotate to next available API key in pool and retry same model!
+        if (keyManager.rotate("429_rate_limit")) {
+          logger.warn(`[interpreter] Switched to next API key in pool; retrying ${model}...`);
+          continue;
+        }
+        modelIdx++; // all keys in pool hit quota; step down to fallback model
+      } else if (status === 404 || err.timeout) {
         modelIdx++; // quota / unknown model / slow: move to the next model
       } else if (retries < 1) {
         retries++; // transient 5xx, network, or malformed JSON: one retry
@@ -200,7 +208,7 @@ async function interpretWithLLM(notes, battery) {
  * raw LLM list (not yet guardrailed) or null when the LLM could not be used.
  */
 export async function interpretOperatorNotes(notes, battery) {
-  if (!ai) return { entries: null, source: "none", error: "GEMINI_API_KEY not configured" };
+  if (!keyManager.hasKeys()) return { entries: null, source: "none", error: "GEMINI_API_KEY not configured" };
 
   const key = JSON.stringify([notes, battery.capacity_kwh, battery.minimum_energy_kwh]);
   if (cache.has(key)) {

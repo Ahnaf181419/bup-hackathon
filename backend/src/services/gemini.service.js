@@ -1,6 +1,6 @@
-import { gemini } from "../config/gemini.js";
 import { env } from "../config/env.js";
 import { buildPrompt } from "./prompt.service.js";
+import { keyManager } from "./keyManager.service.js";
 
 // Dashboard "AI Dispatch Assistant" only; the judged interpreter lives in interpreter.service.js.
 const ASSISTANT_INSTRUCTION = `You are the GridWise Dispatch Assistant for a campus microgrid dashboard (BUP CSE Fest 2026).
@@ -17,15 +17,17 @@ or GridWise, say so briefly.`;
 export async function generateContent(prompt, options = {}) {
   const contents = buildPrompt(prompt, options);
   const model = options.model || env.GEMINI_MODEL;
-  const response = await gemini.models.generateContent({
-    model,
-    contents,
-    config: {
-      systemInstruction: ASSISTANT_INSTRUCTION,
-      temperature: 0.3,
-      maxOutputTokens: 600,
-      thinkingConfig: { thinkingLevel: "MINIMAL" },
-    },
+  return await keyManager.execute(async (client) => {
+    const response = await client.models.generateContent({
+      model,
+      contents,
+      config: {
+        systemInstruction: ASSISTANT_INSTRUCTION,
+        temperature: 0.3,
+        maxOutputTokens: 600,
+        thinkingConfig: { thinkingLevel: "MINIMAL" },
+      },
+    });
+    return response.text;
   });
-  return response.text;
 }

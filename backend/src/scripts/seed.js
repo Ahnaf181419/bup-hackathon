@@ -26,8 +26,19 @@ async function seedDatabase() {
       rawData = fs.readFileSync(fallbackPath, "utf8");
     }
 
-    const { cases } = JSON.parse(rawData);
-    console.log(`Found ${cases.length} benchmark cases in dataset.`);
+    const parsedJson = JSON.parse(rawData);
+    const { _meta, cases } = parsedJson;
+    console.log(`Found ${cases.length} benchmark cases and dataset _meta in dataset.`);
+
+    // 0. Seed Dataset Metadata & Rubric Rules (_meta)
+    if (_meta) {
+      await mongoose.connection.db.collection("benchmark_metadata").updateOne(
+        { key: "dataset_meta" },
+        { $set: { key: "dataset_meta", ..._meta, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      console.log("✓ Seeded dataset _meta and schema definitions to 'benchmark_metadata' collection");
+    }
 
     let scenariosSeeded = 0;
     let resultsSeeded = 0;

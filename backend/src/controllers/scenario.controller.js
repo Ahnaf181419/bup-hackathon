@@ -39,3 +39,13 @@ export async function deleteScenario(req, res, next) {
     next(err);
   }
 }
+
+export async function getBenchmarkMeta(req, res, next) {
+  try {
+    const meta = await scenarioService.getBenchmarkMeta();
+    return res.status(200).json({ meta });
+  } catch (err) {
+    next(err);
+  }
+}
+

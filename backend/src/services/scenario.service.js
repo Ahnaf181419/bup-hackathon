@@ -59,3 +59,13 @@ export async function deleteScenario(userId, id) {
   if (!deleted) throw new NotFoundError(`Scenario '${id}' not found`);
   return deleted;
 }
+
+export async function getBenchmarkMeta() {
+  try {
+    const mongoose = (await import("mongoose")).default;
+    return await mongoose.connection.db.collection("benchmark_metadata").findOne({ key: "dataset_meta" });
+  } catch (err) {
+    return null;
+  }
+}
+

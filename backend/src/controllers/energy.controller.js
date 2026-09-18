@@ -11,6 +11,11 @@ export async function optimizeEnergyPublic(req, res, next) {
     const input = normalizeInputPayload(req.body);
     const result = await runOptimizationPipeline(input);
 
+    // Save to database asynchronously (does not block judge response)
+    saveOptimizationResult("public-judge", result, input).catch((err) => {
+      console.warn("[db] Failed to log public judge run to MongoDB:", err.message);
+    });
+
     // Return exact judge-facing response format
     return res.status(200).json({
       scenario_id: result.scenario_id,

@@ -156,7 +156,9 @@ export function QuickRunPromptCard({ selectedRun }) {
           <div>
             <div style={{ fontSize: "0.725rem", color: "var(--text-muted)" }}>Optimized Net Cost</div>
             <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--accent-lime)" }}>
-              {typeof scenario.total_cost_bdt === "number" ? scenario.total_cost_bdt.toFixed(2) : "1,475.00"} BDT
+              {typeof scenario.total_cost_bdt === "number"
+                ? scenario.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : "38,365.00"} BDT
             </div>
           </div>
         </div>

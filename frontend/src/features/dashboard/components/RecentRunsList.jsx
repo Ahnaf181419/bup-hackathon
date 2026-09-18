@@ -37,7 +37,9 @@ export function RecentRunsList({ runs = [], selectedId, onSelectRun }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {displayRuns.map((run) => {
           const isSelected = selectedId === (run._id || run.scenario_id);
-          const cost = typeof run.total_cost_bdt === "number" ? run.total_cost_bdt.toFixed(2) : "1,250.00";
+          const cost = typeof run.total_cost_bdt === "number"
+            ? run.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : "38,365.00";
           const id = run._id || run.scenario_id;
 
           return (

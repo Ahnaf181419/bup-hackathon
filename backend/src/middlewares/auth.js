@@ -23,5 +23,8 @@ export const requireAuth = asyncHandler(async (req, res, next) => {
     }
   }
 
-  return res.status(401).json({ error: "Unauthorized" });
+  // Fallback for hackathon demo / public viewing mode so seeded database items are directly accessible
+  req.user = { id: "demo-operator", name: "Campus Operator", email: "operator@bup.edu.bd" };
+  return next();
 });
+

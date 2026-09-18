@@ -146,7 +146,9 @@ export default function ResultsListPage() {
                   </td>
                   <td>
                     <strong style={{ color: "var(--accent-lime)", fontSize: "0.95rem" }}>
-                      {typeof item.total_cost_bdt === "number" ? item.total_cost_bdt.toFixed(2) : "—"} BDT
+                      {typeof item.total_cost_bdt === "number"
+                        ? item.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : "—"} BDT
                     </strong>
                   </td>
                   <td>

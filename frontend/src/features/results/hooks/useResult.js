@@ -16,7 +16,19 @@ export function useResult(id) {
       setIsLoading(true);
       setError(null);
 
-      // 1. Try local storage first (instant responsiveness)
+      // 1. Fetch directly from Backend API (MongoDB Atlas bup_hackathon)
+      try {
+        const data = await api.get(`/api/history/${id}`);
+        if (data && data.result) {
+          setResult(data.result);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn(`Could not load result ${id} from API, trying cache/seeds`, err);
+      }
+
+      // 2. Try local storage cache
       if (typeof window !== "undefined") {
         const cached = localStorage.getItem(`gridwise_result_${id}`);
         if (cached) {
@@ -28,18 +40,6 @@ export function useResult(id) {
             console.warn("Cached result parse failed", e);
           }
         }
-      }
-
-      // 2. Try fetching from Backend API
-      try {
-        const data = await api.get(`/api/history/${id}`);
-        if (data && data.result) {
-          setResult(data.result);
-          setIsLoading(false);
-          return;
-        }
-      } catch (err) {
-        // Backend not running yet, gracefully check public sample cases pack
       }
 
       // 3. Check public sample cases pack as fallback

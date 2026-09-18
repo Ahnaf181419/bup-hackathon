@@ -7,7 +7,9 @@ import { MetricCard } from "@/features/shared/components/MetricCard";
 export function ResultSummaryCard({ result }) {
   if (!result) return null;
 
-  const cost = typeof result.total_cost_bdt === "number" ? result.total_cost_bdt.toFixed(2) : "—";
+  const cost = typeof result.total_cost_bdt === "number"
+    ? result.total_cost_bdt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "—";
   const grid = typeof result.total_grid_kwh === "number" ? result.total_grid_kwh.toFixed(1) : "—";
   const peak = typeof result.peak_grid_kwh === "number" ? result.peak_grid_kwh.toFixed(1) : "—";
   const runtime = result.processingTimeMs ? `${result.processingTimeMs} ms` : "< 500 ms";

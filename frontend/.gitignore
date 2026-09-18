@@ -49,3 +49,6 @@ Thumbs.db
 # TypeScript & Cache
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*

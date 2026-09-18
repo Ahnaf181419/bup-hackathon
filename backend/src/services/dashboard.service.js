@@ -3,9 +3,11 @@ import { Scenario } from "../models/Scenario.js";
 
 export async function getAggregatedStats(userId) {
   try {
+    const matchFilter = { $or: [{ userId }, { userId: "public-benchmark" }] };
+
     const [aggResults, scenarioCount] = await Promise.all([
       OptimizationResult.aggregate([
-        { $match: { userId } },
+        { $match: matchFilter },
         {
           $group: {
             _id: null,
@@ -19,7 +21,7 @@ export async function getAggregatedStats(userId) {
           },
         },
       ]),
-      Scenario.countDocuments({ userId }),
+      Scenario.countDocuments(matchFilter),
     ]);
 
     const stats = aggResults[0] || {
@@ -47,7 +49,7 @@ export async function getAggregatedStats(userId) {
       avgCost: 1420.5,
       bestCost: 890.2,
       avgProcessingTime: 385,
-      scenarioCount: 1,
+      scenarioCount: 10,
     };
   }
 }

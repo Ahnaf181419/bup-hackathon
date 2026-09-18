@@ -18,7 +18,6 @@ export async function saveOptimizationResult(userId, result, scenarioInput) {
     });
     return doc;
   } catch (err) {
-    // If DB is offline, return result with simulated id
     return {
       _id: "res-" + Date.now(),
       ...result,
@@ -31,12 +30,14 @@ export async function saveOptimizationResult(userId, result, scenarioInput) {
 
 export async function getHistoryByUser(userId, { limit = 20, skip = 0, status } = {}) {
   try {
-    const query = { userId };
+    const query = {
+      $or: [{ userId }, { userId: "public-benchmark" }],
+    };
     if (status) query.status = status;
 
     const [results, total] = await Promise.all([
       OptimizationResult.find(query)
-        .select("scenario_id total_cost_bdt total_grid_kwh peak_grid_kwh status processingTimeMs createdAt")
+        .select("scenario_id total_cost_bdt total_grid_kwh peak_grid_kwh status processingTimeMs createdAt plan_summary")
         .sort({ createdAt: -1 })
         .skip(Number(skip))
         .limit(Number(limit)),
@@ -52,8 +53,11 @@ export async function getHistoryByUser(userId, { limit = 20, skip = 0, status } 
 export async function getResultById(userId, id) {
   try {
     const doc = await OptimizationResult.findOne({
-      userId,
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { scenario_id: id }],
+      $or: [
+        { userId, scenario_id: id },
+        { userId: "public-benchmark", scenario_id: id },
+        { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+      ],
     });
     if (!doc) throw new NotFoundError(`Result '${id}' not found`);
     return doc;

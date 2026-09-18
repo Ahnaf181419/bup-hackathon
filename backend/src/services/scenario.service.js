@@ -31,7 +31,9 @@ export async function saveScenario(userId, data) {
 
 export async function getScenariosByUser(userId) {
   try {
-    return await Scenario.find({ userId }).sort({ updatedAt: -1 });
+    return await Scenario.find({
+      $or: [{ userId }, { userId: "public-benchmark" }],
+    }).sort({ scenarioId: 1 });
   } catch (err) {
     return [];
   }
@@ -39,8 +41,11 @@ export async function getScenariosByUser(userId) {
 
 export async function getScenarioById(userId, id) {
   const scenario = await Scenario.findOne({
-    userId,
-    $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { scenarioId: id }],
+    $or: [
+      { userId, scenarioId: id },
+      { userId: "public-benchmark", scenarioId: id },
+      { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null },
+    ],
   });
   if (!scenario) throw new NotFoundError(`Scenario '${id}' not found`);
   return scenario;

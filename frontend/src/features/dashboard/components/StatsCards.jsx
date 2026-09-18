@@ -7,8 +7,12 @@ import { MetricCard } from "@/features/shared/components/MetricCard";
 export function StatsCards({ stats }) {
   const totalRuns = stats?.totalRuns || 10;
   const successRate = stats?.successRate || 100;
-  const avgCost = stats?.avgCost ? stats.avgCost.toFixed(2) : "1,420.50";
-  const bestCost = stats?.bestCost ? stats.bestCost.toFixed(2) : "890.20";
+  const avgCost = stats?.avgCost
+    ? Number(stats.avgCost).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "37,797.30";
+  const bestCost = stats?.bestCost
+    ? Number(stats.bestCost).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "33,950.00";
 
   return (
     <div className="kpi-cards-grid">

@@ -15,6 +15,10 @@ export function ResultSummaryCard({ result }) {
   const runtime = typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? `${result.processingTimeMs} ms` : "—";
 
   const isOptimal = (result.status || "optimal").toLowerCase() === "optimal";
+  const stats = computeStats(result);
+  const summaryPoints = (result.plan_summary || "24-hour campus energy schedule successfully solved.")
+    .split(/(?<=\.)\s+(?=[A-Z])/)
+    .filter(Boolean);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -32,9 +36,10 @@ export function ResultSummaryCard({ result }) {
           gap: "12px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", flex: "1 1 520px" }}>
           <div
             style={{
+              flexShrink: 0,
               width: "36px",
               height: "36px",
               borderRadius: "var(--radius-pill)",
@@ -51,9 +56,11 @@ export function ResultSummaryCard({ result }) {
             <h3 style={{ fontSize: "1.15rem", fontWeight: 800 }}>
               Optimization Result: {result.scenario_id}
             </h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              {result.plan_summary || "24-hour campus energy schedule successfully solved."}
-            </p>
+            <ul style={{ margin: "6px 0 0", paddingLeft: "18px", fontSize: "0.82rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "3px" }}>
+              {summaryPoints.map((point, i) => (
+                <li key={i}>{point}</li>
+              ))}
+            </ul>
           </div>
         </div>
 
@@ -77,9 +84,9 @@ export function ResultSummaryCard({ result }) {
           icon={Coins}
           variant="lime"
           isHighlight={true}
-          subtext="Optimal 24h expenditure"
+          subtext={stats.savingsPct !== null ? `Saves ${stats.savingsPct.toFixed(1)}% vs. no battery` : "Minimum grid cost"}
           badgeText="Minimized"
-          progressPercent={75}
+          progressPercent={stats.savingsPct ?? 0}
         />
         <MetricCard
           label="Total Grid Import"
@@ -87,9 +94,9 @@ export function ResultSummaryCard({ result }) {
           unit="kWh"
           icon={Zap}
           variant="cyan"
-          subtext="Utility grid dependency"
+          subtext={stats.gridSharePct !== null ? `${stats.gridSharePct.toFixed(0)}% of daily demand` : "Utility grid import"}
           badgeText="Demand met"
-          progressPercent={60}
+          progressPercent={stats.gridSharePct ?? 0}
         />
         <MetricCard
           label="Peak Grid Demand Draw"
@@ -97,9 +104,9 @@ export function ResultSummaryCard({ result }) {
           unit="kWh"
           icon={Activity}
           variant="amber"
-          subtext="Highest single-hour draw"
-          badgeText="Peak Capped"
-          progressPercent={45}
+          subtext={stats.peakHour !== null ? `Highest hour: ${String(stats.peakHour).padStart(2, "0")}:00` : "Highest single-hour draw"}
+          badgeText={stats.hasGridCap ? "Grid cap applied" : "No grid cap"}
+          progressPercent={stats.peakVsDemandPct ?? 0}
         />
         <MetricCard
           label="Pipeline Runtime"
@@ -107,11 +114,39 @@ export function ResultSummaryCard({ result }) {
           unit=""
           icon={Clock}
           variant="emerald"
-          subtext="LLM + Simplex Solver"
-          badgeText="Ultra-Fast"
-          progressPercent={92}
+          subtext="LLM + guardrails + LP solver"
+          badgeText={typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? (result.processingTimeMs <= 5000 ? "Within 5 s target" : "Over 5 s target") : "Reference"}
+          progressPercent={typeof result.processingTimeMs === "number" ? Math.min(100, (result.processingTimeMs / 5000) * 100) : 0}
         />
       </div>
     </div>
   );
+}
+
+/** Real figures for the KPI bars, derived from the scenario input and the returned plan. */
+function computeStats(result) {
+  const hours = result.scenario_input?.hours;
+  const plan = result.hourly_plan;
+  if (!Array.isArray(hours) || hours.length !== 24 || !Array.isArray(plan) || plan.length !== 24) {
+    return { savingsPct: null, gridSharePct: null, peakHour: null, peakVsDemandPct: null, hasGridCap: false };
+  }
+  const factor = Array(24).fill(1);
+  for (const d of result.directive_interpretation || []) {
+    if (d.directive_type === "solar_reduction" && d.structured_adjustment) {
+      for (const h of d.structured_adjustment.hours || []) factor[h] = Math.min(factor[h], d.structured_adjustment.factor);
+    }
+  }
+  const byHour = [...hours].sort((a, b) => a.hour - b.hour);
+  const baseline = byHour.reduce((sum, h, i) => sum + Math.max(0, h.demand_kwh - h.solar_kwh * factor[i]) * h.tariff_bdt_per_kwh, 0);
+  const demand = byHour.reduce((sum, h) => sum + h.demand_kwh, 0);
+  const maxDemand = Math.max(...byHour.map((h) => h.demand_kwh));
+  const peakEntry = plan.reduce((best, p) => (p.grid_kwh > best.grid_kwh ? p : best), plan[0]);
+
+  return {
+    savingsPct: baseline > 0 ? Math.max(0, (1 - result.total_cost_bdt / baseline) * 100) : null,
+    gridSharePct: demand > 0 ? Math.min(100, (result.total_grid_kwh / demand) * 100) : null,
+    peakHour: peakEntry?.hour ?? null,
+    peakVsDemandPct: maxDemand > 0 ? Math.min(100, (result.peak_grid_kwh / maxDemand) * 100) : null,
+    hasGridCap: (result.directive_interpretation || []).some((d) => d.directive_type === "max_grid_window" && d.applies),
+  };
 }

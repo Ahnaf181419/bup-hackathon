@@ -137,7 +137,11 @@ export default function ResultDetailPage() {
       )}
 
       {(activeTab === "all" || activeTab === "audit") && (
-        <DirectiveInterpretationCard interpretations={result.directive_interpretation} />
+        <DirectiveInterpretationCard
+          interpretations={result.directive_interpretation}
+          notes={result.scenario_input?.operator_notes || []}
+          sources={result.pipeline?.interpretation_sources || []}
+        />
       )}
 
       {(activeTab === "all" || activeTab === "table") && (

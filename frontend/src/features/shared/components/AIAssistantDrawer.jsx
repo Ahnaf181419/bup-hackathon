@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Sparkles, Send, X, Bot, User, CornerDownLeft } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
 import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export function AIAssistantDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -181,7 +183,13 @@ export function AIAssistantDrawer() {
                     fontWeight: msg.role === "user" ? 600 : 400,
                   }}
                 >
-                  {msg.text}
+                  {msg.role === "user" ? (
+                    msg.text
+                  ) : (
+                    <div className="chat-markdown">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

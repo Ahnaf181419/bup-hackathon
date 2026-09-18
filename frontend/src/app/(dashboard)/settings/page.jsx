@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Sliders, Server, Cpu, ShieldCheck, Database, RefreshCw } from "lucide-react";
 import { useToast } from "@/features/shared/context/ToastContext";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -101,7 +102,7 @@ export default function SettingsPage() {
                 type="text"
                 className="form-input"
                 disabled
-                value="Google Gemini 3.1 Flash-Lite (@google/genai)"
+value={`${LLM_MODEL_LABEL} via @google/genai`}
               />
             </div>
 

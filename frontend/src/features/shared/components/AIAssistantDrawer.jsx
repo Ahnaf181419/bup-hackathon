@@ -4,6 +4,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Sparkles, Send, X, Bot, Trash2 } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const DEFAULT_WELCOME = {
   role: "assistant",
@@ -209,7 +212,7 @@ export function AIAssistantDrawer() {
               <div>
                 <h4 style={{ fontSize: "0.9rem", fontWeight: 700 }}>GridWise Copilot</h4>
                 <span style={{ fontSize: "0.7rem", color: "var(--accent-lime)" }}>
-                  Gemini 3.1 Flash-Lite Active
+                  {LLM_MODEL_LABEL}
                 </span>
               </div>
             </div>
@@ -266,7 +269,13 @@ export function AIAssistantDrawer() {
                     fontWeight: msg.role === "user" ? 600 : 400,
                   }}
                 >
-                  {msg.text}
+                  {msg.role === "user" ? (
+                    msg.text
+                  ) : (
+                    <div className="chat-markdown">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

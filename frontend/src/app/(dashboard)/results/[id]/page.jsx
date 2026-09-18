@@ -67,7 +67,9 @@ export default function ResultDetailPage() {
               Scenario Schedule: {result.scenario_id}
             </h1>
             <p className="page-subtitle">
-              Verified optimal 24-hour campus energy dispatch and battery storage plan
+              {result.isReference || result.userId === "public-benchmark"
+                ? "Reference solution from the public sample pack (not produced by a GridWise run)"
+                : "Verified optimal 24-hour campus energy dispatch and battery storage plan"}
             </p>
           </div>
         </div>
@@ -135,7 +137,11 @@ export default function ResultDetailPage() {
       )}
 
       {(activeTab === "all" || activeTab === "audit") && (
-        <DirectiveInterpretationCard interpretations={result.directive_interpretation} />
+        <DirectiveInterpretationCard
+          interpretations={result.directive_interpretation}
+          notes={result.scenario_input?.operator_notes || []}
+          sources={result.pipeline?.interpretation_sources || []}
+        />
       )}
 
       {(activeTab === "all" || activeTab === "table") && (

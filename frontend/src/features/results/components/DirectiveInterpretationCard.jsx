@@ -2,8 +2,9 @@
 
 import React from "react";
 import { Sparkles, CheckCircle, XCircle, Clock, FileCode2, MessageSquareQuote } from "lucide-react";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
-export function DirectiveInterpretationCard({ interpretations }) {
+export function DirectiveInterpretationCard({ interpretations, notes = [], sources = [] }) {
   if (!interpretations || interpretations.length === 0) {
     return null;
   }
@@ -49,13 +50,13 @@ export function DirectiveInterpretationCard({ interpretations }) {
       </div>
 
       <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        Google Gemini 3.1 Flash-Lite interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
+        LLM ({LLM_MODEL_LABEL}) interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
         {interpretations.map((item, idx) => {
           const adj = item.structured_adjustment;
-          const hours = adj?.hours || adj?.window || [];
+          const hours = adj?.hours || adj?.window || []; // `window` only in results cached before the schema fix
 
           return (
             <div
@@ -94,6 +95,11 @@ export function DirectiveInterpretationCard({ interpretations }) {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {sources[idx] && (
+                    <span className={`badge ${sources[idx] === "llm" ? "badge-purple" : "badge-amber"}`} title="Which interpreter produced this directive">
+                      {sources[idx] === "llm" ? "LLM" : sources[idx] === "fallback" ? "Backup parser" : "Guardrail no-op"}
+                    </span>
+                  )}
                   {item.applies ? (
                     <span className="badge badge-lime" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                       <CheckCircle size={12} />
@@ -107,6 +113,23 @@ export function DirectiveInterpretationCard({ interpretations }) {
                   )}
                 </div>
               </div>
+
+              {/* Original operator note */}
+              {notes[idx] && (
+                <blockquote
+                  style={{
+                    margin: 0,
+                    padding: "8px 12px",
+                    borderLeft: "3px solid var(--border-subtle)",
+                    color: "var(--text-secondary)",
+                    fontSize: "0.82rem",
+                    fontStyle: "italic",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  &ldquo;{notes[idx]}&rdquo;
+                </blockquote>
+              )}
 
               {/* Explanation / Interpretation text */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
@@ -161,12 +184,12 @@ export function DirectiveInterpretationCard({ interpretations }) {
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     {adj.factor !== undefined && (
                       <span>
-                        Factor: <strong style={{ color: "var(--accent-amber)" }}>{adj.factor}</strong>
+                        Usable solar: <strong style={{ color: "var(--accent-amber)" }}>{Math.round(adj.factor * 1000) / 10}%</strong> (factor {adj.factor})
                       </span>
                     )}
-                    {adj.reserve_floor_kwh !== undefined && (
+                    {adj.minimum_energy_kwh !== undefined && (
                       <span>
-                        Reserve Floor: <strong style={{ color: "var(--accent-cyan)" }}>{adj.reserve_floor_kwh} kWh</strong>
+                        Reserve Floor: <strong style={{ color: "var(--accent-cyan)" }}>{adj.minimum_energy_kwh} kWh</strong>
                       </span>
                     )}
                     {adj.max_grid_kwh !== undefined && (

@@ -1,6 +1,7 @@
 import { generateContent } from "../services/gemini.service.js";
 import { ChatMessage } from "../models/ChatMessage.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { ValidationError } from "../utils/errors.js";
 
 export const getHistory = asyncHandler(async (req, res) => {
   const userId = req.user?.id || "demo-operator";
@@ -18,11 +19,11 @@ export const clearHistory = asyncHandler(async (req, res) => {
 });
 
 export const generate = asyncHandler(async (req, res) => {
-  const { prompt } = req.body;
+  const prompt = req.body?.prompt;
   const userId = req.user?.id || "demo-operator";
 
-  if (!prompt || typeof prompt !== "string") {
-    return res.status(400).json({ error: "Prompt is required" });
+  if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 2000) {
+    throw new ValidationError("prompt must be a non-empty string of at most 2000 characters");
   }
 
   // Save user prompt

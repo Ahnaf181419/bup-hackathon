@@ -65,6 +65,7 @@ const OptimizationResultSchema = new mongoose.Schema(
     },
     processingTimeMs: { type: Number, default: 0 },
     scenario_input: { type: mongoose.Schema.Types.Mixed },
+    pipeline: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );

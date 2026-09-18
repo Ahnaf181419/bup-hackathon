@@ -87,7 +87,7 @@ async function seedDatabase() {
           peak_grid_kwh: expected_output.peak_grid_kwh,
           plan_summary: expected_output.plan_summary,
           status: "optimal",
-          processingTimeMs: 350,
+          processingTimeMs: 0, // reference answer from the sample pack, not a GridWise run
           scenario_input: input,
         };
 

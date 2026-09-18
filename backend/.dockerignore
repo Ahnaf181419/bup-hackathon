@@ -1,0 +1,11 @@
+# Never bake secrets or local artifacts into the image
+.env
+.env.*
+node_modules
+npm-debug.log*
+*.log
+.git
+.gitignore
+coverage
+.vscode
+.idea

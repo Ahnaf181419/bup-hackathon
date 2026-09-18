@@ -1,242 +1,227 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
+import { DIRECTIVE_TYPES } from "./guardrail.service.js";
 
 const ai = env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null;
 
-const SYSTEM_PROMPT = `You are the GridWise Directive Interpreter for a 24-hour campus microgrid optimizer.
-Your role is to interpret 1 to 3 natural-language operator notes into structured JSON directive objects.
+/*
+ * The LLM returns an intermediate format that is easy for a model to get right
+ * (start/end hours, percentages as stated). Code then expands windows and converts
+ * units in guardrail.service.js, so arithmetic never depends on the model.
+ */
+const SYSTEM_INSTRUCTION = `You interpret campus microgrid operator notes into machine-checkable directives for a 24-hour battery/grid/solar dispatch optimizer (hours 0-23 of ONE operating day).
 
-CRITICAL RULES:
-1. Return a valid JSON array of objects with exactly one entry per operator note, in note_index order (0-indexed).
-2. Allowed directive_type enums:
-   - "solar_reduction": Usable solar fraction factor in [0, 1]. E.g. 75% reduction means factor = 0.25.
-   - "minimum_battery_reserve": Minimum storage floor (reserve_floor_kwh).
-   - "no_charge_window": Forces battery charge to 0 in window.
-   - "no_discharge_window": Forces battery discharge to 0 in window.
-   - "max_grid_window": Caps grid import in window (max_grid_kwh).
-   - "no_op": Conversational notes, administrative announcements, or notes that do not affect dispatch constraints.
-3. Time windows: start-inclusive and end-exclusive (1 PM to 3 PM means hours [13, 14]; noon to 2 PM means [12, 13]; 6 PM to 9 PM means [18, 19, 20]).
-4. For "no_op": "applies" MUST be false, and "structured_adjustment" MUST be null.
-5. For all other directive types: "applies" MUST be true, and "structured_adjustment" MUST be an object with "window" (array of unique ascending integers 0-23) plus any numeric parameters.
-6. Return ONLY the raw JSON array, without markdown formatting or code blocks.`;
+Return exactly one interpretation per note, with note_index equal to the note's position (0-based).
 
-const FEW_SHOT_EXAMPLES = `
-Example 1:
-Input notes:
-["Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.", "The sports office moved next month's registration deadline."]
-Output JSON:
-[
-  {
-    "note_index": 0,
-    "applies": true,
-    "directive_type": "solar_reduction",
-    "structured_adjustment": { "window": [12, 13], "factor": 0.25 },
-    "explanation": "Solar cleaning between 12:00 and 14:00 reduces usable solar to 25%."
+directive_type must be one of:
+- "solar_reduction": usable solar is reduced during a window. Set usable_solar_fraction = the fraction of forecast solar that REMAINS usable (0..1). "80% reduction" -> 0.2; "only 25% of forecast usable" -> 0.25; "about half of forecast" -> 0.5; "cut by a third" -> 0.6667; "one-fifth usable" -> 0.2; "no solar" -> 0.
+- "minimum_battery_reserve": the battery must hold at least some energy during a window. If the note gives kWh set reserve_kwh. If it gives a percentage/fraction of battery capacity set reserve_percent_of_capacity (e.g. "half of capacity" -> 50) and do NOT convert it yourself.
+- "no_charge_window": the battery must not charge (charger isolated/unavailable/disabled, charging prohibited).
+- "no_discharge_window": the battery must not discharge (inverter/relay/protection work blocking discharge, discharging prohibited).
+- "max_grid_window": grid import must not exceed a limit in each hour of a window (feeder/transformer/substation/utility import limits). Set max_grid_kwh.
+- "no_op": the note does not constrain energy dispatch for this operating day: administrative/social/facility news (library, cafeteria, clubs, bookings, deadlines), notes about another day (next week, next month, tomorrow), or purely informational remarks.
+
+Time windows (windows is a list of {start_hour, end_hour}):
+- 24-hour clock. start_hour is INCLUSIVE, end_hour is EXCLUSIVE. "from 1 PM until 3 PM" -> {13, 15} (hours 13 and 14). "6 PM to 9 PM" -> {18, 21}.
+- noon = 12. midnight as an end = 24, as a start = 0. "13:00-15:00" -> {13, 15}. "for three hours starting 7 PM" -> {19, 22}.
+- Windows crossing midnight keep their order: "10 PM to 2 AM" -> {22, 2}.
+- Use multiple windows only if the note names several separate periods.
+
+Rules:
+- Use only numbers stated or directly implied by the note. Never invent a window or a value; if a dispatch note has no usable window or value, use "no_op".
+- If one note mentions several things, choose the single constraint it primarily imposes.
+- Leave fields that do not apply to the directive_type out.
+- explanation: one short sentence explaining the interpretation.`;
+
+const EXAMPLES = `Examples (illustrative wording, not from the evaluation set):
+Notes: ["PV strings on the engineering block are being re-cabled 9 AM to 11 AM; expect roughly a 60% drop in output.", "Chess club meets Thursday."]
+Output: {"interpretations":[{"note_index":0,"directive_type":"solar_reduction","windows":[{"start_hour":9,"end_hour":11}],"usable_solar_fraction":0.4,"explanation":"A 60% drop leaves 40% of forecast solar usable from 09:00 to 11:00."},{"note_index":1,"directive_type":"no_op","explanation":"Club meeting news does not affect dispatch."}]}
+Notes: ["Hold a quarter of the battery's capacity in reserve between 7 and 10 in the evening.", "Utility asks us to draw no more than 120 kWh per hour from the grid 5 PM-7 PM."]
+Output: {"interpretations":[{"note_index":0,"directive_type":"minimum_battery_reserve","windows":[{"start_hour":19,"end_hour":22}],"reserve_percent_of_capacity":25,"explanation":"A quarter of capacity must stay stored from 19:00 to 22:00."},{"note_index":1,"directive_type":"max_grid_window","windows":[{"start_hour":17,"end_hour":19}],"max_grid_kwh":120,"explanation":"Grid import is limited to 120 kWh in each hour from 17:00 to 19:00."}]}`;
+
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    interpretations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          note_index: { type: "integer" },
+          directive_type: { type: "string", enum: DIRECTIVE_TYPES },
+          windows: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                start_hour: { type: "integer" },
+                end_hour: { type: "integer" },
+              },
+              required: ["start_hour", "end_hour"],
+            },
+          },
+          usable_solar_fraction: { type: "number" },
+          reserve_kwh: { type: "number" },
+          reserve_percent_of_capacity: { type: "number" },
+          max_grid_kwh: { type: "number" },
+          explanation: { type: "string" },
+        },
+        required: ["note_index", "directive_type", "explanation"],
+      },
+    },
   },
-  {
-    "note_index": 1,
-    "applies": false,
-    "directive_type": "no_op",
-    "structured_adjustment": null,
-    "explanation": "Administrative announcement does not affect dispatch constraints."
+  required: ["interpretations"],
+};
+
+/*
+ * Config ladder. Not every model accepts every option (e.g. thinkingLevel vs thinkingBudget).
+ * On HTTP 400 we step down one level for that model and remember it for later requests.
+ */
+const CONFIG_LEVELS = [
+  { schema: true, thinking: { thinkingLevel: "MINIMAL" } },
+  { schema: true, thinking: { thinkingBudget: 0 } },
+  { schema: true, thinking: null },
+  { schema: false, thinking: null },
+];
+const modelLevel = new Map();
+
+const CACHE_MAX = 500;
+const cache = new Map(); // key -> raw interpretations (LRU by insertion order)
+const inFlight = new Map(); // key -> Promise, dedupes concurrent identical requests
+
+function buildPrompt(notes, battery) {
+  const noteLines = notes.map((n, i) => `${i}: ${JSON.stringify(n)}`).join("\n");
+  return `${EXAMPLES}
+
+Battery for this scenario: capacity ${battery.capacity_kwh} kWh, base minimum ${battery.minimum_energy_kwh} kWh, max charge ${battery.max_charge_kwh_per_hour} kWh/h, max discharge ${battery.max_discharge_kwh_per_hour} kWh/h.
+
+Interpret these ${notes.length} operator note(s):
+${noteLines}`;
+}
+
+function parseModelJson(text) {
+  const cleaned = String(text || "")
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const parsed = JSON.parse(cleaned);
+  const list = Array.isArray(parsed) ? parsed : parsed?.interpretations;
+  if (!Array.isArray(list)) throw new Error("LLM JSON has no interpretations array");
+  return list;
+}
+
+function errorStatus(err) {
+  if (err?.timeout) return null;
+  if (Number.isInteger(err?.status)) return err.status;
+  const m = String(err?.message || "").match(/"code"\s*:\s*(\d{3})|got status:\s*(\d{3})/i);
+  return m ? Number(m[1] || m[2]) : null;
+}
+
+async function callModel(model, prompt, timeoutMs) {
+  const level = CONFIG_LEVELS[modelLevel.get(model) ?? 0];
+  const controller = new AbortController();
+  let timer;
+  const config = {
+    systemInstruction: SYSTEM_INSTRUCTION,
+    temperature: 0,
+    responseMimeType: "application/json",
+    // Timeout is enforced locally (abort + race). Don't pass httpOptions.timeout: the SDK forwards it
+    // as a server deadline and the API rejects deadlines under 10 s with HTTP 400.
+    abortSignal: controller.signal,
+  };
+  if (level.schema) config.responseJsonSchema = RESPONSE_SCHEMA;
+  if (level.thinking) config.thinkingConfig = level.thinking;
+
+  try {
+    const response = await Promise.race([
+      ai.models.generateContent({ model, contents: prompt, config }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          const e = new Error(`LLM timed out after ${timeoutMs} ms`);
+          e.timeout = true;
+          reject(e);
+        }, timeoutMs);
+      }),
+    ]);
+    return parseModelJson(response.text);
+  } finally {
+    clearTimeout(timer);
   }
-]
+}
 
-Example 2:
-Input notes:
-["Emergency campus event: preserve at least 350 kWh in the battery between 6 PM and 9 PM."]
-Output JSON:
-[
-  {
-    "note_index": 0,
-    "applies": true,
-    "directive_type": "minimum_battery_reserve",
-    "structured_adjustment": { "window": [18, 19, 20], "reserve_floor_kwh": 350 },
-    "explanation": "Minimum battery reserve raised to 350 kWh from 18:00 to 21:00."
-  }
-]
-`;
+async function interpretWithLLM(notes, battery) {
+  const prompt = buildPrompt(notes, battery);
+  const deadline = Date.now() + env.LLM_TOTAL_BUDGET_MS;
+  const models = [env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODEL].filter((m, i, a) => m && a.indexOf(m) === i);
 
-export async function interpretOperatorNotes(notes = [], hours = [], battery = {}) {
-  if (!notes || notes.length === 0) return [];
+  let modelIdx = 0;
+  let retries = 0;
+  let lastError = null;
 
-  // 1. If Gemini API is configured, call Gemini with a 5-second timeout guard
-  if (ai) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < 1000 || modelIdx >= models.length) break;
+    const model = models[modelIdx];
+    const started = Date.now();
     try {
-      const promptText = `${SYSTEM_PROMPT}\n\n${FEW_SHOT_EXAMPLES}\n\nActual Operator Notes to interpret:\n${JSON.stringify(notes, null, 2)}`;
-      
-      const apiPromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
-        contents: promptText,
-      });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Gemini API call timed out after 5000ms")), 5000)
-      );
-
-      const response = await Promise.race([apiPromise, timeoutPromise]);
-
-      const raw = response.text?.trim() || "";
-      const cleaned = raw.replace(/^```json/i, "").replace(/^```/i, "").replace(/```$/i, "").trim();
-      const parsed = JSON.parse(cleaned);
-
-      if (Array.isArray(parsed) && parsed.length === notes.length) {
-        return parsed;
-      }
+      const list = await callModel(model, prompt, Math.min(env.LLM_TIMEOUT_MS, remaining));
+      logger.info(`[interpreter] ${model} answered in ${Date.now() - started} ms`);
+      return { entries: list, model };
     } catch (err) {
-      logger.warn("[interpreter] Gemini API unavailable or timed out. Deterministic parser activated.", err.message);
+      lastError = err;
+      const status = errorStatus(err);
+      logger.warn(`[interpreter] ${model} failed (${status ?? (err.timeout ? "timeout" : "parse/network")}): ${String(err.message).slice(0, 160)}`);
+
+      if (status === 400) {
+        const next = (modelLevel.get(model) ?? 0) + 1;
+        if (next < CONFIG_LEVELS.length) {
+          modelLevel.set(model, next); // retry same model with a simpler config
+          continue;
+        }
+        modelIdx++;
+      } else if (status === 429 || status === 404 || status === 403 || err.timeout) {
+        modelIdx++; // quota / unknown model / slow: move to the next model
+      } else if (retries < 1) {
+        retries++; // transient 5xx, network, or malformed JSON: one retry
+        await new Promise((r) => setTimeout(r, 250));
+      } else {
+        modelIdx++;
+      }
     }
   }
-
-  // 2. Deterministic Rule-Based Fallback Parser (guarantees 100% uptime & benchmark accuracy)
-  return parseNotesDeterministically(notes, battery);
+  return { entries: null, error: lastError ? String(lastError.message).slice(0, 200) : "LLM unavailable" };
 }
 
 /**
- * Deterministic regex & keyword parser for robust local execution
+ * Interpret operator notes with the LLM. Returns { entries, source, model } where entries is the
+ * raw LLM list (not yet guardrailed) or null when the LLM could not be used.
  */
-function parseNotesDeterministically(notes, battery) {
-  return notes.map((note, index) => {
-    const text = note.toLowerCase();
+export async function interpretOperatorNotes(notes, battery) {
+  if (!ai) return { entries: null, source: "none", error: "GEMINI_API_KEY not configured" };
 
-    // Check for distractor / irrelevant notes
-    const isDistractor =
-      text.includes("sports office") ||
-      text.includes("cafeteria") ||
-      text.includes("lost and found") ||
-      text.includes("registration deadline") ||
-      text.includes("lunch menu") ||
-      text.includes("weather forecast looks nice");
-
-    if (isDistractor) {
-      return {
-        note_index: index,
-        applies: false,
-        directive_type: "no_op",
-        structured_adjustment: null,
-        explanation: "Informational or administrative note with no physical grid constraints.",
-      };
-    }
-
-    // Check for solar reduction
-    if (text.includes("solar") && (text.includes("wash") || text.includes("clean") || text.includes("reduc") || text.includes("dust") || text.includes("shadow") || text.includes("cloud"))) {
-      const window = extractHourWindow(text, [12, 13]);
-      let factor = 0.25;
-      const pctMatch = text.match(/(\d+)%/);
-      if (pctMatch) {
-        const pct = parseInt(pctMatch[1], 10);
-        if (text.includes("reduced by") || text.includes("reduction of")) {
-          factor = Math.max(0, Math.min(1, (100 - pct) / 100));
-        } else {
-          factor = Math.max(0, Math.min(1, pct / 100));
-        }
-      }
-      return {
-        note_index: index,
-        applies: true,
-        directive_type: "solar_reduction",
-        structured_adjustment: { window, factor },
-        explanation: `Solar availability reduced to factor ${factor} during hours [${window.join(", ")}].`,
-      };
-    }
-
-    // Check for battery charger isolation / no charge window
-    if ((text.includes("charger") || text.includes("charge")) && (text.includes("isolate") || text.includes("maintenance") || text.includes("no charge") || text.includes("prohibit") || text.includes("disabled")) && !text.includes("discharge")) {
-      const window = extractHourWindow(text, [2, 3, 4]);
-      return {
-        note_index: index,
-        applies: true,
-        directive_type: "no_charge_window",
-        structured_adjustment: { window },
-        explanation: `Battery charging prohibited during hours [${window.join(", ")}].`,
-      };
-    }
-
-    // Check for minimum battery reserve
-    if ((text.includes("battery") || text.includes("storage")) && (text.includes("reserve") || text.includes("preserve") || text.includes("keep at least") || text.includes("stored"))) {
-      const window = extractHourWindow(text, [18, 19, 20]);
-      let floor = 300;
-      const pctMatch = text.match(/(\d+)%/);
-      const kwhMatch = text.match(/(\d+)\s*kwh/);
-      if (pctMatch && battery.capacity_kwh) {
-        floor = (parseInt(pctMatch[1], 10) / 100) * battery.capacity_kwh;
-      } else if (kwhMatch) {
-        floor = parseFloat(kwhMatch[1]);
-      }
-      return {
-        note_index: index,
-        applies: true,
-        directive_type: "minimum_battery_reserve",
-        structured_adjustment: { window, reserve_floor_kwh: floor },
-        explanation: `Battery storage reserve floor raised to ${floor} kWh during hours [${window.join(", ")}].`,
-      };
-    }
-
-    // Check for no discharge window / inverter maintenance
-    if (text.includes("discharge") && (text.includes("no") || text.includes("prohibit") || text.includes("prevent") || text.includes("avoid") || text.includes("isolate"))) {
-      const window = extractHourWindow(text, [13, 14]);
-      return {
-        note_index: index,
-        applies: true,
-        directive_type: "no_discharge_window",
-        structured_adjustment: { window },
-        explanation: `Battery discharge prohibited during hours [${window.join(", ")}].`,
-      };
-    }
-
-    // Check for grid import limit / cap
-    if (text.includes("grid") && (text.includes("cap") || text.includes("limit") || text.includes("maximum") || text.includes("avoid"))) {
-      const window = extractHourWindow(text, [17, 18, 19, 20]);
-      let maxGrid = 150;
-      const kwhMatch = text.match(/(\d+)\s*kwh/);
-      if (kwhMatch) maxGrid = parseFloat(kwhMatch[1]);
-      return {
-        note_index: index,
-        applies: true,
-        directive_type: "max_grid_window",
-        structured_adjustment: { window, max_grid_kwh: maxGrid },
-        explanation: `Grid import capped at ${maxGrid} kWh during hours [${window.join(", ")}].`,
-      };
-    }
-
-    // Default fallback: treat as no_op
-    return {
-      note_index: index,
-      applies: false,
-      directive_type: "no_op",
-      structured_adjustment: null,
-      explanation: "No active dispatch directive recognized.",
-    };
-  });
-}
-
-function extractHourWindow(text, defaultWindow) {
-  // Matches "noon until 2 pm", "12 pm to 2 pm", "1 pm to 3 pm", "6 pm to 9 pm"
-  const startEndMatch = text.match(/(noon|\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:until|to|-)\s*(midnight|\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
-  if (startEndMatch) {
-    const startHour = parseHourString(startEndMatch[1]);
-    const endHour = parseHourString(startEndMatch[2]);
-    if (startHour !== null && endHour !== null && endHour > startHour) {
-      const window = [];
-      for (let h = startHour; h < endHour; h++) {
-        if (h >= 0 && h <= 23) window.push(h);
-      }
-      if (window.length > 0) return window;
-    }
+  const key = JSON.stringify([notes, battery.capacity_kwh, battery.minimum_energy_kwh]);
+  if (cache.has(key)) {
+    const hit = cache.get(key);
+    cache.delete(key);
+    cache.set(key, hit);
+    return { entries: hit.entries, source: "llm-cache", model: hit.model };
   }
-  return defaultWindow;
-}
+  if (inFlight.has(key)) return inFlight.get(key);
 
-function parseHourString(str) {
-  const s = str.trim().toLowerCase();
-  if (s === "noon" || s === "12 pm") return 12;
-  if (s === "midnight" || s === "12 am") return 0;
-  const match = s.match(/(\d{1,2})(?::\d{2})?\s*(am|pm)?/);
-  if (!match) return null;
-  let h = parseInt(match[1], 10);
-  const ampm = match[2];
-  if (ampm === "pm" && h < 12) h += 12;
-  if (ampm === "am" && h === 12) h = 0;
-  return h;
+  const promise = interpretWithLLM(notes, battery)
+    .then((res) => {
+      if (res.entries) {
+        cache.set(key, res);
+        if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+        return { entries: res.entries, source: "llm", model: res.model };
+      }
+      return { entries: null, source: "none", error: res.error };
+    })
+    .finally(() => inFlight.delete(key));
+
+  inFlight.set(key, promise);
+  return promise;
 }

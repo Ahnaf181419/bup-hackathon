@@ -3,7 +3,6 @@
  * Product UI (Operate mode): neutrals carry the layout, lime marks actions, selection and success only.
  * Data colours are fixed per quantity (solar, grid, battery) and reused by every chart and table.
  */
-@import "../styles/motion.css";
 
 :root {
   /* Surfaces (dark control-room ramp) */

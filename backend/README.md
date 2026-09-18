@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-cp .env.example .env
+# create .env (gitignored) - see the variable table in the root README
 npm install
 npm run dev
 ```

@@ -42,30 +42,21 @@ export function useResult(id) {
         }
       }
 
-      // 3. Check public sample cases pack as fallback
+      // 3. Public sample pack: show the published reference answer, clearly labelled as such.
       const matched = SAMPLE_CASES.find(
-        (c) => c.id === id || c.id.toLowerCase() === id.toLowerCase() || (c.expected_output && c.expected_output.scenario_id === id)
+        (c) => c.id.toLowerCase() === id.toLowerCase() || c.expected_output?.scenario_id === id
       );
 
       if (matched && matched.expected_output) {
-        const constructed = {
+        setResult({
           _id: matched.id,
           ...matched.expected_output,
-          createdAt: new Date().toISOString(),
-          processingTimeMs: 380,
+          isReference: true,
+          processingTimeMs: null,
           scenario_input: matched.input,
-        };
-        setResult(constructed);
-      } else {
-        // If not found, fall back to SAMPLE-01
-        const fallback = SAMPLE_CASES[0];
-        setResult({
-          _id: "SAMPLE-01",
-          ...fallback.expected_output,
-          createdAt: new Date().toISOString(),
-          processingTimeMs: 412,
-          scenario_input: fallback.input,
         });
+      } else {
+        setError(`Result '${id}' was not found.`);
       }
 
       setIsLoading(false);

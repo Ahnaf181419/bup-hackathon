@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Sparkles, CheckCircle, XCircle, Clock, FileCode2, MessageSquareQuote } from "lucide-react";
+import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export function DirectiveInterpretationCard({ interpretations }) {
   if (!interpretations || interpretations.length === 0) {
@@ -49,13 +50,13 @@ export function DirectiveInterpretationCard({ interpretations }) {
       </div>
 
       <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-        Gemini 2.5 interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
+        LLM ({LLM_MODEL_LABEL}) interpretation of natural language operator notes into deterministic optimization constraints. Verified by guardrail schema before dispatch.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
         {interpretations.map((item, idx) => {
           const adj = item.structured_adjustment;
-          const hours = adj?.hours || adj?.window || [];
+          const hours = adj?.hours || adj?.window || []; // `window` only in results cached before the schema fix
 
           return (
             <div
@@ -164,9 +165,9 @@ export function DirectiveInterpretationCard({ interpretations }) {
                         Factor: <strong style={{ color: "var(--accent-amber)" }}>{adj.factor}</strong>
                       </span>
                     )}
-                    {adj.reserve_floor_kwh !== undefined && (
+                    {adj.minimum_energy_kwh !== undefined && (
                       <span>
-                        Reserve Floor: <strong style={{ color: "var(--accent-cyan)" }}>{adj.reserve_floor_kwh} kWh</strong>
+                        Reserve Floor: <strong style={{ color: "var(--accent-cyan)" }}>{adj.minimum_energy_kwh} kWh</strong>
                       </span>
                     )}
                     {adj.max_grid_kwh !== undefined && (

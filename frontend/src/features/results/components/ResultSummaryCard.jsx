@@ -12,7 +12,7 @@ export function ResultSummaryCard({ result }) {
     : "—";
   const grid = typeof result.total_grid_kwh === "number" ? result.total_grid_kwh.toFixed(1) : "—";
   const peak = typeof result.peak_grid_kwh === "number" ? result.peak_grid_kwh.toFixed(1) : "—";
-  const runtime = result.processingTimeMs ? `${result.processingTimeMs} ms` : "< 500 ms";
+  const runtime = typeof result.processingTimeMs === "number" && result.processingTimeMs > 0 ? `${result.processingTimeMs} ms` : "—";
 
   const isOptimal = (result.status || "optimal").toLowerCase() === "optimal";
 

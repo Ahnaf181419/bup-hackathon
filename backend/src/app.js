@@ -6,37 +6,40 @@ import { optimizeEnergyPublic } from "./controllers/energy.controller.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = express();
+app.disable("x-powered-by");
 
-const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Permissive in dev to avoid CORS blocking
-    },
-    credentials: true,
-  })
-);
+// Judge-facing endpoints: open to any origin, no credentials.
+const publicCors = cors();
 
-app.use(express.json({ limit: "10mb" }));
-
-// Public Health Check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+// Dashboard API: only configured origins may send credentials (session cookies).
+const apiCors = cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true,
 });
 
-// Official Public Hackathon Judge Endpoint (no auth, root level, snake_case)
-app.post("/optimize-energy", optimizeEnergyPublic);
+app.use(express.json({ limit: "1mb" }));
 
-// Authenticated Application API
-app.use("/api", apiRouter);
+app.options("/health", publicCors);
+app.get("/health", publicCors, (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
-// Central Error Handler
+app.options("/optimize-energy", publicCors);
+app.post("/optimize-energy", publicCors, optimizeEnergyPublic);
+
+app.use("/api", apiCors, apiRouter);
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 app.use(errorHandler);
 
 export default app;

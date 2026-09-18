@@ -17,7 +17,9 @@ export async function getAggregatedStats(userId) {
             },
             avgCost: { $avg: "$total_cost_bdt" },
             bestCost: { $min: "$total_cost_bdt" },
-            avgProcessingTime: { $avg: "$processingTimeMs" },
+            // Only real runs count toward timing: seeded reference answers were never timed.
+            avgProcessingTime: { $avg: { $cond: [{ $and: [{ $ne: ["$userId", "public-benchmark"] }, { $gt: ["$processingTimeMs", 0] }] }, "$processingTimeMs", null] } },
+            timedRuns: { $sum: { $cond: [{ $and: [{ $ne: ["$userId", "public-benchmark"] }, { $gt: ["$processingTimeMs", 0] }] }, 1, 0] } },
           },
         },
       ]),
@@ -40,16 +42,11 @@ export async function getAggregatedStats(userId) {
       avgCost: Math.round((stats.avgCost || 0) * 100) / 100,
       bestCost: Math.round((stats.bestCost || 0) * 100) / 100,
       avgProcessingTime: Math.round(stats.avgProcessingTime || 0),
+      timedRuns: stats.timedRuns || 0,
       scenarioCount,
     };
   } catch (err) {
-    return {
-      totalRuns: 10,
-      successRate: 100,
-      avgCost: 1420.5,
-      bestCost: 890.2,
-      avgProcessingTime: 385,
-      scenarioCount: 10,
-    };
+    // Database unavailable: report no stats rather than invented numbers.
+    return null;
   }
 }

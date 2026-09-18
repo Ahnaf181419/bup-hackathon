@@ -38,7 +38,7 @@ export async function getHistoryByUser(userId, { limit = 20, skip = 0, status } 
 
     const [results, total] = await Promise.all([
       OptimizationResult.find(query)
-        .select("scenario_id total_cost_bdt total_grid_kwh peak_grid_kwh status processingTimeMs createdAt plan_summary")
+        .select("userId scenario_id total_cost_bdt total_grid_kwh peak_grid_kwh status processingTimeMs createdAt plan_summary")
         .sort({ createdAt: -1 })
         .skip(Number(skip))
         .limit(Number(limit)),

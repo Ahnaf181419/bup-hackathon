@@ -107,7 +107,7 @@ Everything else has a default:
 | `GEMINI_FALLBACK_MODEL` | no | Second model on quota/timeout (default `gemini-3.5-flash-lite`; empty disables) |
 | `LLM_TIMEOUT_MS` / `LLM_TOTAL_BUDGET_MS` | no | Per-call timeout (default 9000) and total LLM budget per request (default 15000) |
 | `HOST` / `PORT` | no | Bind address (default `0.0.0.0`) and port (default `3001`) |
-| `MONGO_URI`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN` | no | Dashboard only (history, login). The judged endpoints never use them. |
+| `MONGO_URI`, `CORS_ORIGIN` | no | Dashboard only (run history, chat history). The judged endpoints never use them. There is no login or authentication. |
 
 ### Try it
 
@@ -154,8 +154,8 @@ curl http://localhost:3001/health
 
 ## Dependencies & credits
 
-- **Backend:** express, cors, dotenv, @google/genai, javascript-lp-solver, mongoose / mongodb and better-auth (dashboard only)
-- **Frontend (optional dashboard):** Next.js, React, Recharts, lucide-react, better-auth
+- **Backend:** express, cors, dotenv, @google/genai, javascript-lp-solver, mongoose (dashboard history only)
+- **Frontend (optional dashboard):** Next.js, React, Recharts, lucide-react
 - **LLM:** Google Gemini
 - **AI tools used during development:** Claude Code (Anthropic), Lovable
 
@@ -164,7 +164,7 @@ curl http://localhost:3001/health
 - Interpretation quality depends on the LLM. The backup parser handles common phrasings but not every paraphrase. It never invents a directive; when unsure it returns `no_op`.
 - A note that implies several constraints is mapped to its single primary directive, since the contract allows one entry per note.
 - Genuinely infeasible directive combinations return 422 rather than a partial plan.
-- The dashboard (`/api/*`, MongoDB, login) is a convenience for demos. It is not part of the judged API.
+- The dashboard (`/api/*`, MongoDB) is a convenience for demos. It is not part of the judged API.
 
 ## Secret handling
 

@@ -25,11 +25,13 @@ export const metadata = {
 };
 
 import { Providers } from "./providers";
+import { AtmosphereBackground } from "@/features/shared/motion/AtmosphereBackground";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${chakraPetch.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <body>
+        <AtmosphereBackground />
         <Providers>{children}</Providers>
       </body>
     </html>

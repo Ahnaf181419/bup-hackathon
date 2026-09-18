@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Sparkles, Send, X, Bot, Trash2 } from "lucide-react";
 import { api } from "@/features/shared/lib/api";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,14 +13,13 @@ const DEFAULT_WELCOME = {
 };
 
 export function AIAssistantDrawer() {
-  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([DEFAULT_WELCOME]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const storageKey = `gridwise_chat_${user?.id || user?.email || "guest"}`;
+  const storageKey = "gridwise_chat";
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {

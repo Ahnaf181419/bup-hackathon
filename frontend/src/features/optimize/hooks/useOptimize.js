@@ -8,7 +8,7 @@ import { getSampleCaseById } from "@/features/shared/lib/sampleCases";
 
 const DRAFT_KEY = "gridwise_draft_scenario";
 
-// The form renders only after AuthGuard resolves on the client, so reading sessionStorage here is safe.
+// The form is wrapped in <ClientOnly> (see optimize/page.jsx), so reading sessionStorage here is safe.
 function readDraft() {
   try {
     return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
@@ -98,7 +98,7 @@ export function useOptimize() {
       try {
         result = await api.post("/api/energy/optimize", payload);
       } catch (backendErr) {
-        if (backendErr.status >= 400 && backendErr.status < 500 && backendErr.status !== 401 && backendErr.status !== 404) {
+        if (backendErr.status >= 400 && backendErr.status < 500 && backendErr.status !== 404) {
           throw backendErr;
         }
         result = await api.post("/optimize-energy", payload);

@@ -24,8 +24,8 @@ routes → controllers → services → models / gemini
 - **controllers** — read request, call service, shape response
 - **services** — business logic, Gemini calls, DB operations
 - **models** — Mongoose schemas
-- **middlewares** — `requireAuth` (Better Auth session), `errorHandler`
-- **config** — env, db connection, Gemini client, Better Auth instance
+- **middlewares** — `errorHandler` (there is no authentication)
+- **config** — env, db connection, Gemini client, fixed operator id
 
 ## Backend tree
 
@@ -33,11 +33,11 @@ routes → controllers → services → models / gemini
 backend/src/
 ├── server.js                 # entry — DB connect, listen
 ├── app.js                    # express app — CORS, /health, /api, errors
-├── config/{env,db,gemini,auth}.js
-├── routes/{index,auth,ai,user}.routes.js
-├── controllers/{ai,user}.controller.js
+├── config/{env,db,gemini,operator}.js
+├── routes/{index,ai,energy,history,dashboard,scenario}.routes.js
+├── controllers/{ai,energy,history,dashboard,scenario}.controller.js
 ├── services/{gemini,prompt}.service.js
-├── models/{User,index}.js
+├── models/{Scenario,OptimizationResult,ChatMessage,index}.js
 ├── middlewares/{auth,validate,errorHandler}.js
 └── utils/{logger,asyncHandler}.js
 ```
@@ -47,7 +47,7 @@ backend/src/
 1. React calls Better Auth client (`/api/auth/sign-up`, `/sign-in`...).
 2. Better Auth on Express validates, stores user/session in MongoDB.
 3. Session cookie returned; `credentials: "include"` on all fetches.
-4. Protected routes go through `requireAuth` middleware.
+4. No route requires login; dashboard data is stored under one fixed operator id.
 
 ## Key decisions
 

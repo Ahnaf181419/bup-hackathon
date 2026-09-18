@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sliders, Server, Cpu, ShieldCheck, Database, RefreshCw } from "lucide-react";
+import { Sliders, Server, Cpu, ShieldCheck, RefreshCw } from "lucide-react";
 import { useToast } from "@/features/shared/context/ToastContext";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { LLM_MODEL_LABEL } from "@/features/shared/lib/constants";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
   const { success: toastSuccess } = useToast();
   const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001");
   const [tolerance, setTolerance] = useState("0.01");
@@ -50,10 +48,10 @@ export default function SettingsPage() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <Server size={18} color="var(--accent-lime)" />
-            <h3 style={{ fontSize: "1.05rem" }}>Backend API & Auth Endpoint</h3>
+            <h3 style={{ fontSize: "1.05rem" }}>Backend API</h3>
           </div>
           <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)" }}>
-            Express.js backend server handling Better Auth, Gemini LLM pipeline, and LP dispatch solver.
+            Express.js backend running the Gemini LLM pipeline and the LP dispatch solver. No login: the dashboard is open.
           </p>
 
           <div className="form-group">
@@ -68,8 +66,6 @@ export default function SettingsPage() {
 
           <div style={{ display: "flex", gap: "12px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
             <span>Status: <strong>Ready</strong></span>
-            <span>·</span>
-            <span>Auth Provider: <strong>Better Auth 1.2</strong></span>
             <span>·</span>
             <span>CORS: <strong>localhost:3000 / localhost:5173</strong></span>
           </div>
@@ -121,29 +117,6 @@ value={`${LLM_MODEL_LABEL} via @google/genai`}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.8rem", color: "var(--accent-lime)" }}>
             <ShieldCheck size={16} />
             <span>End-of-day battery SoC neutrality strictly audited at hour 23</span>
-          </div>
-        </div>
-
-        {/* Operator Profile */}
-        <div
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-lg)",
-            padding: "24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Database size={18} color="var(--accent-amber)" />
-            <h3 style={{ fontSize: "1.05rem" }}>Active Operator Profile</h3>
-          </div>
-          <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            <div>Name: <strong style={{ color: "var(--text-primary)" }}>{user?.name || "Campus Operator"}</strong></div>
-            <div style={{ marginTop: "4px" }}>Email: <strong style={{ color: "var(--text-primary)" }}>{user?.email || "operator@bup.campus.ac.bd"}</strong></div>
-            <div style={{ marginTop: "4px" }}>Role: <span className="badge badge-lime">Lead Energy Dispatcher</span></div>
           </div>
         </div>
 

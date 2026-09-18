@@ -1,9 +1,8 @@
 import { Router } from "express";
-import { optimizeEnergyAuth } from "../controllers/energy.controller.js";
-import { allowDemoUser } from "../middlewares/auth.js";
+import { optimizeEnergyDashboard } from "../controllers/energy.controller.js";
 
 const router = Router();
 
-router.post("/optimize", allowDemoUser, optimizeEnergyAuth);
+router.post("/optimize", optimizeEnergyDashboard);
 
 export default router;

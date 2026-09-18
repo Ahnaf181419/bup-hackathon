@@ -10,7 +10,7 @@ export class ApiError extends Error {
 }
 
 /**
- * Universal API fetch client with cookie credentials
+ * JSON fetch client for the GridWise backend (no cookies or sessions)
  */
 export async function apiFetch(endpoint, options = {}) {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
@@ -24,7 +24,6 @@ export async function apiFetch(endpoint, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers,
-      credentials: "include", // For Better Auth session cookies
     });
 
     const data = await response.json().catch(() => null);

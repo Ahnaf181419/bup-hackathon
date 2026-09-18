@@ -3,8 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Zap, LayoutDashboard, SlidersHorizontal, BarChart3, LogOut, Settings } from "lucide-react";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { Zap, LayoutDashboard, SlidersHorizontal, BarChart3, Settings } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", short: "Home", href: "/dashboard", icon: LayoutDashboard },
@@ -15,7 +14,6 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
 
   return (
     <header className="top-nav">
@@ -45,18 +43,6 @@ export function Navbar() {
           );
         })}
       </nav>
-
-      <div className="nav-utils">
-        <div className="user-profile-pill" title={user?.email || "Operator"}>
-          <span className="user-avatar" aria-hidden="true">
-            {user?.name ? user.name.charAt(0).toUpperCase() : "O"}
-          </span>
-          <span className="user-name-text">{user?.name || "Operator"}</span>
-        </div>
-        <button onClick={signOut} className="icon-button" title="Sign out" aria-label="Sign out">
-          <LogOut size={15} strokeWidth={1.75} />
-        </button>
-      </div>
     </header>
   );
 }
